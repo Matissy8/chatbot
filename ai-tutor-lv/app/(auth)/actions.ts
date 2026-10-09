@@ -13,7 +13,7 @@ export type AuthActionResult = {
 function supabaseSetupError(): AuthActionResult | null {
   return isSupabaseConfigured()
     ? null
-    : { error: "Supabase nav konfigurēts. Pievieno NEXT_PUBLIC_SUPABASE_URL un NEXT_PUBLIC_SUPABASE_ANON_KEY .env.local failā." };
+    : { error: "Supabase nav konfigurēts. Pievieno projekta URL un anonīmo vai publicējamo atslēgu .env.local failā." };
 }
 
 function formatAuthError(message: string): string {
@@ -23,7 +23,8 @@ function formatAuthError(message: string): string {
   return message;
 }
 
-export async function login(formData: FormData): Promise<AuthActionResult> {
+export async function login(previousState: AuthActionResult, formData: FormData): Promise<AuthActionResult> {
+  void previousState;
   const setupError = supabaseSetupError();
   if (setupError) return setupError;
 
@@ -39,7 +40,8 @@ export async function login(formData: FormData): Promise<AuthActionResult> {
   redirect("/chat");
 }
 
-export async function signup(formData: FormData): Promise<AuthActionResult> {
+export async function signup(previousState: AuthActionResult, formData: FormData): Promise<AuthActionResult> {
+  void previousState;
   const setupError = supabaseSetupError();
   if (setupError) return setupError;
 

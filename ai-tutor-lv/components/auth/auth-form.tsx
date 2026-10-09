@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type FormEvent } from "react";
+import { useActionState } from "react";
 import { Bot, LoaderCircle } from "lucide-react";
 import { login, signup } from "@/app/(auth)/actions";
 import { Button } from "@/components/ui/button";
@@ -11,28 +11,8 @@ import { Label } from "@/components/ui/label";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 
 export function AuthForm({ mode }: { mode: "login" | "register" }) {
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
   const isLogin = mode === "login";
-
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setPending(true);
-    setError("");
-    setMessage("");
-
-    try {
-      const formData = new FormData(event.currentTarget);
-      const result = isLogin ? await login(formData) : await signup(formData);
-      setError(result.error ?? "");
-      setMessage(result.message ?? "");
-    } catch {
-      setError("Neizdevās sazināties ar serveri. Mēģini vēlreiz.");
-    } finally {
-      setPending(false);
-    }
-  }
+  const [state, formAction, pending] = useActionState(isLogin ? login : signup, {});
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-5">
@@ -51,11 +31,11 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
         <CardContent>
           {!isSupabaseConfigured() && (
             <div className="mb-4 rounded-lg border border-border bg-muted p-3 text-sm text-muted-foreground" role="status">
-              Autentifikācijai pievieno Supabase anonīmo atslēgu .env.local failā; AI funkcijām pievieno Gemini, OpenAI vai Anthropic API atslēgu.
+              Pārbaudi Supabase projekta savienojuma iestatījumus .env.local failā. AI funkcijām pievieno Gemini, OpenAI vai Anthropic API atslēgu.
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form action={formAction} className="space-y-4">
             {!isLogin && (
               <div className="space-y-2">
                 <Label htmlFor="display_name">Vārds vai segvārds</Label>
@@ -79,8 +59,8 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
               />
             </div>
 
-            {error && <p className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive" role="alert">{error}</p>}
-            {message && <p className="rounded-lg border border-border bg-muted p-3 text-sm text-foreground" role="status">{message}</p>}
+            {state.error && <p className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive" role="alert">{state.error}</p>}
+            {state.message && <p className="rounded-lg border border-border bg-muted p-3 text-sm text-foreground" role="status">{state.message}</p>}
 
             <Button type="submit" disabled={pending} className="w-full">
               {pending && <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />}
