@@ -45,7 +45,15 @@ Run `supabase/schema.sql`, then `supabase/schema_chat_xp.sql`, then `supabase/sc
 
 ## Production deployment
 
-Deploy to Vercel and configure the Supabase environment variables in project settings.
+### Vercel application deployment
+
+Import the GitHub repository `Matissy8/chatbot` into Vercel and set the Vercel project's **Root Directory** to `ai-tutor-lv`. Enable deployments from the `main` branch. Configure the required environment variables in Vercel Project Settings (at minimum the Supabase URL and publishable/anon key; add a newly rotated Gemini/OpenAI/Anthropic key for AI features). Once connected, pushes to `main` trigger Vercel deployments automatically.
+
+### Supabase database deployment
+
+The repository includes `.github/workflows/supabase-schema.yml`. To enable automatic schema application when the SQL files change, add a repository Actions secret named `SUPABASE_DB_URL` containing the Supabase PostgreSQL **Session pooler** connection URI (use the connection details from the Supabase dashboard; do not commit it or use the service-role key). The workflow runs the three idempotent SQL files in order on pushes to `main` and can also be started manually from GitHub Actions. If the secret is not configured, the workflow skips database deployment.
+
+Set Vercel environment variables separately in Vercel; GitHub Actions secrets are not automatically copied to Vercel.
 
 ## Notes
 

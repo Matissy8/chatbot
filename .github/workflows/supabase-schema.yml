@@ -1,0 +1,42 @@
+name: Apply Supabase schema
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "ai-tutor-lv/supabase/schema.sql"
+      - "ai-tutor-lv/supabase/schema_chat_xp.sql"
+      - "ai-tutor-lv/supabase/schema_practice.sql"
+      - ".github/workflows/supabase-schema.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  apply-schema:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up PostgreSQL client
+        if: ${{ env.SUPABASE_DB_URL != '' }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client
+
+      - name: Apply idempotent database schema
+        if: ${{ env.SUPABASE_DB_URL != '' }}
+        run: |
+          set -euo pipefail
+          psql "$SUPABASE_DB_URL" --set ON_ERROR_STOP=1 --single-transaction --file=ai-tutor-lv/supabase/schema.sql
+          psql "$SUPABASE_DB_URL" --set ON_ERROR_STOP=1 --single-transaction --file=ai-tutor-lv/supabase/schema_chat_xp.sql
+          psql "$SUPABASE_DB_URL" --set ON_ERROR_STOP=1 --single-transaction --file=ai-tutor-lv/supabase/schema_practice.sql
+
+      - name: Explain missing database secret
+        if: ${{ env.SUPABASE_DB_URL == '' }}
+        run: echo "Skipped Supabase schema deployment; add SUPABASE_DB_URL under repository Actions secrets to enable it."
