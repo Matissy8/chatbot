@@ -1,6 +1,4 @@
 import { generateText } from "ai";
-import { openai } from "@ai-sdk/openai";
-import { anthropic } from "@ai-sdk/anthropic";
 import { createGoogle } from "@ai-sdk/google";
 
 export type TutorLanguage = "lv" | "en";
@@ -18,7 +16,7 @@ export function limitContext<T extends { role: string; content: string }>(messag
     chars += message.content.length;
     kept.unshift(message);
   }
-  // Providers such as Anthropic reject conversations that start with an assistant turn.
+  // Provider conversations should start with a user turn.
   while (kept.length > 1 && kept[0].role !== "user") kept.shift();
   return kept;
 }
@@ -28,8 +26,7 @@ export function aiRequestOptions(timeoutMs: number, maxOutputTokens: number, sig
   return {
     abortSignal: signal ? AbortSignal.any([timeout, signal]) : timeout,
     maxOutputTokens,
-    // Gemini 2.5 reasons by default, which adds seconds of latency to tutoring answers.
-    providerOptions: { google: { thinkingConfig: { thinkingBudget: 0 } } },
+    providerOptions: { google: { thinkingConfig: { thinkingLevel: "low" } } },
   };
 }
 
@@ -54,31 +51,21 @@ export function cacheSet(key: string, value: string, ttlMs: number) {
   cache.set(key, { value, expires: Date.now() + ttlMs });
 }
 
-function getUsableProviderKeys() {
-  const isUsable = (value: string | undefined) => Boolean(
-    value?.trim() && !/your-|replace|placeholder|example|changeme/i.test(value)
-  );
-  const openAiKey = process.env.OPENAI_API_KEY;
-  const anthropicKey = process.env.ANTHROPIC_API_KEY;
-  const geminiKey = process.env.GEMINI_API_KEY;
-  return {
-    openAiKey: isUsable(openAiKey) ? openAiKey : undefined,
-    anthropicKey: isUsable(anthropicKey) ? anthropicKey : undefined,
-    geminiKey: isUsable(geminiKey) ? geminiKey : undefined,
-  };
+function getUsableGeminiKey() {
+  const value = process.env.GEMINI_API_KEY;
+  return value?.trim() && !/your-|replace|placeholder|example|changeme/i.test(value)
+    ? value
+    : undefined;
 }
 
 export function hasConfiguredAIProvider() {
-  const { openAiKey, anthropicKey, geminiKey } = getUsableProviderKeys();
-  return Boolean(openAiKey || anthropicKey || geminiKey);
+  return Boolean(getUsableGeminiKey());
 }
 
 export function getConfiguredModel() {
-  const { openAiKey, anthropicKey, geminiKey } = getUsableProviderKeys();
-  if (openAiKey) return openai("gpt-4o-mini");
-  if (anthropicKey) return anthropic("claude-sonnet-5-5");
-  if (geminiKey) return createGoogle({ apiKey: geminiKey })("gemini-2.5-flash");
-  throw new Error("No AI provider API key is configured.");
+  const apiKey = getUsableGeminiKey();
+  if (!apiKey) throw new Error("No Gemini API key is configured.");
+  return createGoogle({ apiKey })("gemini-3.8-flash");
 }
 
 export async function generateTutorReply({
@@ -94,8 +81,7 @@ export async function generateTutorReply({
     .reverse()
     .find((message) => message.role === "user")?.content ?? "Palīdzi man mācīties.";
 
-  const { openAiKey, anthropicKey, geminiKey } = getUsableProviderKeys();
-  if (!allowProviders || (!openAiKey && !anthropicKey && !geminiKey)) {
+  if (!allowProviders || !getUsableGeminiKey()) {
     return buildFallbackReply({ lastUserMessage, language });
   }
 

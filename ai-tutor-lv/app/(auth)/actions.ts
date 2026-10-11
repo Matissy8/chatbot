@@ -12,6 +12,8 @@ export type AuthActionResult = {
   message?: string;
 };
 
+const SIGNUP_STATUS_MESSAGE = "Ja konts ar šo e-pastu jau pastāv, pieslēdzies. Ja šī ir jauna reģistrācija, pārbaudi e-pastu un apstiprini kontu.";
+
 function supabaseSetupError(): AuthActionResult | null {
   return isSupabaseConfigured()
     ? null
@@ -75,11 +77,20 @@ export async function signup(previousState: AuthActionResult, formData: FormData
     return { error: formatAuthError(message) };
   }
   const { data, error } = result;
-  if (error) return { error: formatAuthError(error.message) };
+  if (error) {
+    if (error.message.toLowerCase().includes("user already registered")) {
+      return { message: SIGNUP_STATUS_MESSAGE };
+    }
+    return { error: formatAuthError(error.message) };
+  }
+
+  if (data.user?.identities?.length === 0) {
+    return { message: SIGNUP_STATUS_MESSAGE };
+  }
 
   revalidatePath("/", "layout");
   if (!data.session) {
-    return { message: "Pārbaudi savu e-pastu un apstiprini kontu, tad pieslēdzies." };
+    return { message: SIGNUP_STATUS_MESSAGE };
   }
 
   redirect("/onboarding");
