@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ChatMessage } from "@/components/chat/ChatMessage";
 import type { ChatMessage as ChatMessageData } from "@/lib/demo-data";
+import { streamChatReply } from "@/lib/chat-client";
+import { isAbort } from "@/lib/fetch-json";
 
 export function FloatingAssistant() {
   const [isOpen, setIsOpen] = useState(false);
@@ -18,38 +20,47 @@ export function FloatingAssistant() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const messagesRef = useRef<HTMLDivElement>(null);
+  const busyRef = useRef(false);
+  const chatIdRef = useRef<string | undefined>(undefined);
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (messagesRef.current) messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
   }, [messages, loading, isOpen]);
 
+  useEffect(() => () => abortRef.current?.abort(), []);
+
   async function sendMessage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const text = input.trim();
-    if (!text || loading) return;
+    if (!text || busyRef.current) return;
+    busyRef.current = true;
 
     const nextMessages = [...messages, { role: "user" as const, content: text }];
-    setMessages(nextMessages);
+    setMessages([...nextMessages, { role: "assistant", content: "" }]);
     setInput("");
     setLoading(true);
+
+    const controller = new AbortController();
+    abortRef.current = controller;
     try {
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: nextMessages }),
+      const result = await streamChatReply({
+        messages: nextMessages,
+        chatId: chatIdRef.current,
+        signal: controller.signal,
+        onText: (value) => setMessages([...nextMessages, { role: "assistant", content: value }]),
       });
-      const data = (await response.json()) as { message?: string; error?: string };
-      if (!response.ok) throw new Error(data.error ?? "Neizdevās saņemt atbildi.");
-      setMessages((current) => [...current, {
-        role: "assistant",
-        content: data.message ?? "Atbilde nav pieejama. Mēģini vēlreiz.",
-      }]);
+      chatIdRef.current = result.chatId;
+      window.dispatchEvent(new Event("chat-history-updated"));
     } catch (error) {
-      setMessages((current) => [...current, {
-        role: "assistant",
-        content: error instanceof Error ? error.message : "Neizdevās sazināties ar asistentu.",
-      }]);
+      if (isAbort(error)) return;
+      setMessages([
+        ...nextMessages,
+        { role: "assistant", content: error instanceof Error && error.message ? error.message : "Neizdevās sazināties ar asistentu." },
+      ]);
     } finally {
+      busyRef.current = false;
+      abortRef.current = null;
       setLoading(false);
     }
   }

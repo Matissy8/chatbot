@@ -29,6 +29,7 @@ AI-first educational platform designed for Latvian schools, music schools, music
 2. Copy environment variables:
    cp .env.example .env.local
 3. Add the Supabase project URL and anon/publishable key to `.env.local`. For Gemini, create a key in Google AI Studio and set `GEMINI_API_KEY`; OpenAI and Anthropic are also supported.
+   To temporarily enable a non-persistent guest preview, set `NEXT_PUBLIC_ENABLE_GUEST_MODE=true` and restart the dev server. Remove the flag or set it to `false` when ready for authenticated-only access. Guest chat uses the local response fallback, practice scores remain in the browser, and teacher tools use local templates; guest activity is not saved and earns no XP. Photo AI analysis requires an authenticated account.
 4. In the Supabase SQL Editor, run `supabase/schema.sql`.
 5. For immediate signup-to-onboarding testing, disable email confirmation in Supabase Auth; otherwise users must confirm their email before signing in.
 6. Start the app:
@@ -47,7 +48,9 @@ Run `supabase/schema.sql`, then `supabase/schema_chat_xp.sql`, then `supabase/sc
 
 ### Vercel application deployment
 
-Import the GitHub repository `Matissy8/chatbot` into Vercel and set the Vercel project's **Root Directory** to `ai-tutor-lv`. Enable deployments from the `main` branch. Configure the required environment variables in Vercel Project Settings (at minimum the Supabase URL and publishable/anon key; add a newly rotated Gemini/OpenAI/Anthropic key for AI features). Once connected, pushes to `main` trigger Vercel deployments automatically.
+Import the GitHub repository `Matissy8/chatbot` into Vercel and set the Vercel project's **Root Directory** to `ai-tutor-lv`, with the **Next.js** framework preset. Enable deployments from `main`. Configure the required environment variables in Vercel Project Settings (at minimum the Supabase URL and publishable/anon key; add a newly rotated Gemini/OpenAI/Anthropic key for AI features). Once connected, pushes to `main` trigger Vercel deployments automatically.
+
+For a manual production deploy, authenticate the Vercel CLI (`vercel login`) and run `./deploy.sh` from this project directory. To also add a custom domain to the linked Vercel project, pass its hostname, for example `./deploy.sh example.com`. The script never configures registrar DNS; use the records Vercel displays under **Settings → Domains**. Set `VERCEL_PROJECT_NAME` if the linked Vercel project is not named `chatbot`.
 
 ### Supabase database deployment
 

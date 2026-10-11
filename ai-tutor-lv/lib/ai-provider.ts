@@ -5,6 +5,55 @@ import { createGoogle } from "@ai-sdk/google";
 
 export type TutorLanguage = "lv" | "en";
 
+const MAX_CONTEXT_MESSAGES = 12;
+const MAX_CONTEXT_CHARS = 16_000;
+
+export function limitContext<T extends { role: string; content: string }>(messages: T[]): T[] {
+  const kept: T[] = [];
+  let chars = 0;
+  for (let index = messages.length - 1; index >= 0 && kept.length < MAX_CONTEXT_MESSAGES; index -= 1) {
+    const message = messages[index];
+    // Always keep the newest message, even if it alone exceeds the budget.
+    if (kept.length > 0 && chars + message.content.length > MAX_CONTEXT_CHARS) break;
+    chars += message.content.length;
+    kept.unshift(message);
+  }
+  // Providers such as Anthropic reject conversations that start with an assistant turn.
+  while (kept.length > 1 && kept[0].role !== "user") kept.shift();
+  return kept;
+}
+
+export function aiRequestOptions(timeoutMs: number, maxOutputTokens: number, signal?: AbortSignal) {
+  const timeout = AbortSignal.timeout(timeoutMs);
+  return {
+    abortSignal: signal ? AbortSignal.any([timeout, signal]) : timeout,
+    maxOutputTokens,
+    // Gemini 2.5 reasons by default, which adds seconds of latency to tutoring answers.
+    providerOptions: { google: { thinkingConfig: { thinkingBudget: 0 } } },
+  };
+}
+
+const cache = new Map<string, { value: string; expires: number }>();
+const CACHE_MAX_ENTRIES = 200;
+
+export function cacheGet(key: string) {
+  const entry = cache.get(key);
+  if (!entry) return undefined;
+  if (entry.expires < Date.now()) {
+    cache.delete(key);
+    return undefined;
+  }
+  cache.delete(key);
+  cache.set(key, entry);
+  return entry.value;
+}
+
+export function cacheSet(key: string, value: string, ttlMs: number) {
+  cache.delete(key);
+  if (cache.size >= CACHE_MAX_ENTRIES) cache.delete(cache.keys().next().value as string);
+  cache.set(key, { value, expires: Date.now() + ttlMs });
+}
+
 function getUsableProviderKeys() {
   const isUsable = (value: string | undefined) => Boolean(
     value?.trim() && !/your-|replace|placeholder|example|changeme/i.test(value)
@@ -35,16 +84,18 @@ export function getConfiguredModel() {
 export async function generateTutorReply({
   messages,
   language = "lv",
+  allowProviders = true,
 }: {
   messages: Array<{ role: "user" | "assistant" | "system"; content: string }>;
   language?: TutorLanguage;
+  allowProviders?: boolean;
 }) {
   const lastUserMessage = [...messages]
     .reverse()
     .find((message) => message.role === "user")?.content ?? "Palīdzi man mācīties.";
 
   const { openAiKey, anthropicKey, geminiKey } = getUsableProviderKeys();
-  if (!openAiKey && !anthropicKey && !geminiKey) {
+  if (!allowProviders || (!openAiKey && !anthropicKey && !geminiKey)) {
     return buildFallbackReply({ lastUserMessage, language });
   }
 
@@ -52,11 +103,12 @@ export async function generateTutorReply({
     const model = getConfiguredModel();
     const result = await generateText({
       model,
+      ...aiRequestOptions(30_000, 1200),
       system:
         language === "lv"
           ? "Tu esi AI tutors Latvijas skolēniem. Atbildi latviešu valodā, izmanto pareizu izglītības terminoloģiju. Paskaidro iemeslu, ne tikai rezultātu."
           : "You are an AI tutor for students. Answer in English, explain the reasoning clearly, and use educational terminology.",
-      messages: messages.map((message) => ({
+      messages: limitContext(messages).map((message) => ({
         role: message.role,
         content: message.content,
       })),

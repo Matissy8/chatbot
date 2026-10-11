@@ -6,9 +6,26 @@ import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { calculateLevel } from "@/lib/gamification";
 import type { AppSession } from "@/lib/session";
+import { GUEST_COOKIE_NAME } from "@/lib/guest-mode";
 
 const userTypes = ["school_student", "music_student", "music_high_school", "teacher", "independent"] as const;
 type UserType = (typeof userTypes)[number];
+
+function createGuestSession(): AppSession {
+  return {
+    id: "guest-preview",
+    email: "",
+    displayName: "Viesis",
+    userType: "independent",
+    language: "lv",
+    xp: 0,
+    level: 1,
+    streak: 0,
+    lastActive: new Date().toISOString(),
+    onboardingComplete: true,
+    isGuest: true,
+  };
+}
 
 function parseUserType(value: unknown): UserType {
   return userTypes.includes(value as UserType) ? (value as UserType) : "independent";
@@ -50,11 +67,12 @@ type AppContextValue = {
 
 const AppContext = createContext<AppContextValue | undefined>(undefined);
 
-export function AppProvider({ children }: { children: React.ReactNode }) {
-  const [session, setSession] = useState<AppSession | null>(null);
-  const [loading, setLoading] = useState(() => isSupabaseConfigured());
+export function AppProvider({ children, initialGuestMode = false }: { children: React.ReactNode; initialGuestMode?: boolean }) {
+  const [session, setSession] = useState<AppSession | null>(() => initialGuestMode ? createGuestSession() : null);
+  const [loading, setLoading] = useState(() => !initialGuestMode && isSupabaseConfigured());
 
   const refreshSession = useCallback(async () => {
+    if (session?.isGuest) return;
     if (!isSupabaseConfigured()) {
       setSession(null);
       setLoading(false);
@@ -71,9 +89,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [session?.isGuest]);
 
   useEffect(() => {
+    if (initialGuestMode) return;
+
     if (!isSupabaseConfigured()) {
       return;
     }
@@ -104,16 +124,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       active = false;
       subscription.unsubscribe();
     };
-  }, []);
+  }, [initialGuestMode]);
 
   const logout = useCallback(async () => {
+    if (session?.isGuest) {
+      document.cookie = `${GUEST_COOKIE_NAME}=; Path=/; Max-Age=0; SameSite=Lax`;
+      setSession(null);
+      return;
+    }
     if (!isSupabaseConfigured()) {
       setSession(null);
       return;
     }
     const supabase = createSupabaseBrowserClient();
     await supabase.auth.signOut();
-  }, []);
+  }, [session?.isGuest]);
 
   const value = useMemo<AppContextValue>(() => ({
     session,

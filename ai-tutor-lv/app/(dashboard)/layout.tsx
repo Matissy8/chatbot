@@ -32,6 +32,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <div>
             <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Izglītības platforma</p>
             <h2 className="text-lg font-semibold tracking-tight text-foreground">Chat-first mācīšanās</h2>
+            {session.isGuest && <p className="mt-1 text-xs text-muted-foreground">Viesu priekšskatījums · dati netiek saglabāti</p>}
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
             <div className="inline-flex items-center gap-2 rounded-full border border-border bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground">

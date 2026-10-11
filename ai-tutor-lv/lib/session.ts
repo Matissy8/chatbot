@@ -10,4 +10,5 @@ export type AppSession = {
   streak: number;
   lastActive: string;
   onboardingComplete: boolean;
+  isGuest?: boolean;
 };

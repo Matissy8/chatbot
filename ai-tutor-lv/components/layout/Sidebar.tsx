@@ -76,6 +76,7 @@ function applyTheme(theme: ThemeMode) {
 export function Sidebar() {
   const pathname = usePathname();
   const { session } = useAppSession();
+  const isGuest = Boolean(session?.isGuest);
   const [userChats, setUserChats] = useState<{ id: string; title: string }[]>([]);
   const [theme, setTheme] = useState<ThemeMode>("light");
   const [language, setLanguage] = useState<Language>("LV");
@@ -85,7 +86,7 @@ export function Sidebar() {
   const flattenedLinks = navGroups.flatMap((group) => group.items);
 
   const loadUserChats = useCallback(async () => {
-    if (!session?.id) {
+    if (!session?.id || isGuest) {
       setUserChats([]);
       return;
     }
@@ -103,7 +104,7 @@ export function Sidebar() {
       console.error("Unable to load recent chats:", error);
       setUserChats([]);
     }
-  }, [session?.id]);
+  }, [session?.id, isGuest]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => void loadUserChats(), 0);

@@ -6,14 +6,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAppSession } from "@/components/providers/app-provider";
-import { practiceDifficulties, practiceSubjects, type PracticeDifficulty, type PracticeSubject, type PublicPracticeQuestion } from "@/lib/practice-data";
+import { fetchJson } from "@/lib/fetch-json";
+import { guestPracticeQuestions, practiceDifficulties, practiceSubjects, type PracticeDifficulty, type PracticeSubject, type PublicPracticeQuestion } from "@/lib/practice-data";
 
 type CheckedAnswer = { selectedOption: number; correct: boolean; explanation: string };
 type QuizStartResult = { attemptId: string; questions: PublicPracticeQuestion[] };
 type CompletionResult = { awarded: boolean; score: number; total: number; xpAwarded: number; totalXp: number };
 
 export default function PracticePage() {
-  const { refreshSession } = useAppSession();
+  const { refreshSession, session } = useAppSession();
   const [subject, setSubject] = useState<PracticeSubject>("harmony");
   const [difficulty, setDifficulty] = useState<PracticeDifficulty>("medium");
   const [attemptId, setAttemptId] = useState("");
@@ -39,13 +40,19 @@ export default function PracticePage() {
     setAnswers({});
     setCurrentQuestion(0);
     try {
-      const response = await fetch("/api/practice/start", {
+      if (session?.isGuest) {
+        setAttemptId("guest-preview");
+        setQuestions(guestPracticeQuestions[subject][difficulty]);
+        setIsStarting(false);
+        return;
+      }
+
+      const data = await fetchJson<QuizStartResult>("/api/practice/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ subject, difficulty }),
+        timeoutMs: 20_000,
       });
-      const data = await response.json() as QuizStartResult & { error?: string };
-      if (!response.ok) throw new Error(data.error ?? "Neizdevās sākt treniņu.");
       setAttemptId(data.attemptId);
       setQuestions(data.questions);
     } catch (cause) {
@@ -60,13 +67,24 @@ export default function PracticePage() {
     setIsChecking(true);
     setError("");
     try {
-      const response = await fetch("/api/practice/answer", {
+      if (session?.isGuest) {
+        setAnswers((current) => ({
+          ...current,
+          [question.id]: {
+            selectedOption: optionIndex,
+            correct: optionIndex === question.correctAnswer,
+            explanation: question.explanation ?? "Demo jautājums viesu priekšskatījumam.",
+          },
+        }));
+        return;
+      }
+
+      const data = await fetchJson<{ correct?: boolean; explanation?: string; selected_option?: number }>("/api/practice/answer", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ attemptId, questionId: question.id, selectedOption: optionIndex }),
+        timeoutMs: 20_000,
       });
-      const data = await response.json() as { correct?: boolean; explanation?: string; selected_option?: number; error?: string };
-      if (!response.ok) throw new Error(data.error ?? "Neizdevās pārbaudīt atbildi.");
       setAnswers((current) => ({
         ...current,
         [question.id]: {
@@ -87,16 +105,27 @@ export default function PracticePage() {
     setIsCompleting(true);
     setError("");
     try {
-      const response = await fetch("/api/practice/complete", {
+      if (session?.isGuest) {
+        setResult({
+          awarded: false,
+          score: Object.values(answers).filter((answer) => answer.correct).length,
+          total: questions.length,
+          xpAwarded: 0,
+          totalXp: 0,
+        });
+        setCompleted(true);
+        return;
+      }
+
+      const data = await fetchJson<CompletionResult>("/api/practice/complete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ attemptId }),
+        timeoutMs: 20_000,
       });
-      const data = await response.json() as CompletionResult & { error?: string };
-      if (!response.ok) throw new Error(data.error ?? "Neizdevās saglabāt rezultātu.");
       setResult(data);
       setCompleted(true);
-      await refreshSession();
+      void refreshSession().catch(() => undefined);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Neizdevās saglabāt rezultātu.");
     } finally {
@@ -124,7 +153,7 @@ export default function PracticePage() {
       <header>
         <p className="text-sm font-medium text-muted-foreground">Interaktīvs treniņš</p>
         <h1 className="mt-1 text-3xl font-bold tracking-tight">Uzdevumu ģenerators</h1>
-        <p className="mt-2 max-w-2xl text-sm text-muted-foreground">Izvēlies priekšmetu un grūtību. Atbildes pārbaudīsies uzreiz, bet par pabeigtu viktorīnu saņemsi +50 XP.</p>
+        <p className="mt-2 max-w-2xl text-sm text-muted-foreground">Izvēlies priekšmetu un grūtību. Atbildes pārbaudīsies uzreiz, bet par pabeigtu viktorīnu reģistrētam lietotājam pienākas +50 XP.</p>
       </header>
 
       {questions.length === 0 && !completed && (
@@ -157,7 +186,7 @@ export default function PracticePage() {
             {error && <p className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive" role="alert">{error}</p>}
             <Button onClick={() => void startQuiz()} disabled={isStarting} className="h-10 w-full gap-2">
               {isStarting ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-              {isStarting ? "Sagatavo jautājumus…" : "Sākt treniņu · +50 XP"}
+              {isStarting ? "Sagatavo jautājumus…" : session?.isGuest ? "Sākt demo treniņu" : "Sākt treniņu · +50 XP"}
             </Button>
           </CardContent>
         </Card>
@@ -215,7 +244,7 @@ export default function PracticePage() {
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-primary text-primary-foreground"><Trophy className="h-8 w-8" /></div>
             <h2 className="text-2xl font-bold">Treniņš pabeigts!</h2>
             <p className="text-sm text-muted-foreground">Rezultāts: {result.score} no {result.total} pareizi.</p>
-            <div className="mx-auto flex w-fit items-center gap-2 rounded-xl bg-muted px-4 py-3 text-sm font-semibold"><Sparkles className="h-4 w-4" />{result.awarded ? "+50 XP pievienoti profilam" : "Šis mēģinājums jau bija ieskaitīts"}</div>
+            <div className="mx-auto flex w-fit items-center gap-2 rounded-xl bg-muted px-4 py-3 text-sm font-semibold"><Sparkles className="h-4 w-4" />{session?.isGuest ? "Viesu demo — rezultāts un XP netiek saglabāti" : result.awarded ? "+50 XP pievienoti profilam" : "Šis mēģinājums jau bija ieskaitīts"}</div>
             <Button onClick={resetQuiz} variant="outline" className="gap-2"><RotateCcw className="h-4 w-4" /> Jauns treniņš</Button>
           </CardContent>
         </Card>

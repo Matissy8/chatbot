@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { fetchJson } from "@/lib/fetch-json";
 
 type ResourceType = "lesson-plan" | "worksheet" | "quiz";
 
@@ -28,18 +29,17 @@ export default function TeacherToolsPage() {
   const [copied, setCopied] = useState(false);
 
   async function generateMaterial() {
-    if (topic.trim().length < 2) return;
+    if (topic.trim().length < 2 || loading) return;
     setLoading(true);
     setError("");
     setCopied(false);
     try {
-      const response = await fetch("/api/teacher-tools", {
+      const data = await fetchJson<{ content?: string }>("/api/teacher-tools", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ topic: topic.trim(), subject, grade, type: resourceType }),
+        timeoutMs: 65_000,
       });
-      const data = await response.json() as { content?: string; error?: string };
-      if (!response.ok) throw new Error(data.error ?? "Neizdevās izveidot materiālu.");
       setContent(data.content ?? "");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Neizdevās izveidot materiālu.");
@@ -49,7 +49,12 @@ export default function TeacherToolsPage() {
   }
 
   async function copyMaterial() {
-    await navigator.clipboard.writeText(content);
+    try {
+      await navigator.clipboard.writeText(content);
+    } catch {
+      setError("Neizdevās nokopēt. Atļauj piekļuvi starpliktuvei.");
+      return;
+    }
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1800);
   }

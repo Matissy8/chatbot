@@ -2,8 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { GUEST_COOKIE_NAME, isGuestModeEnabled } from "@/lib/guest-mode";
 
 export type AuthActionResult = {
   error?: string;
@@ -20,6 +22,9 @@ function formatAuthError(message: string): string {
   if (message.toLowerCase().includes("invalid login credentials")) return "E-pasts vai parole nav pareiza.";
   if (message.toLowerCase().includes("user already registered")) return "Šis e-pasts jau ir reģistrēts. Pieslēdzies savam kontam.";
   if (message.toLowerCase().includes("password should be at least")) return "Parolei jābūt vismaz 6 rakstzīmes garai.";
+  if (/fetch failed|timeout|timed out|aborted|network|ENOTFOUND|ECONN/i.test(message)) {
+    return "Neizdevās sazināties ar autentifikācijas serveri. Mēģini vēlreiz pēc brīža.";
+  }
   return message;
 }
 
@@ -32,9 +37,15 @@ export async function login(previousState: AuthActionResult, formData: FormData)
   const password = String(formData.get("password") ?? "");
   if (!email || !password) return { error: "Ievadi e-pastu un paroli." };
 
-  const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) return { error: formatAuthError(error.message) };
+  let authError: { message: string } | null;
+  try {
+    const supabase = await createClient();
+    ({ error: authError } = await supabase.auth.signInWithPassword({ email, password }));
+  } catch (cause) {
+    const message = cause instanceof Error ? cause.message : "auth server unavailable";
+    return { error: formatAuthError(message) };
+  }
+  if (authError) return { error: formatAuthError(authError.message) };
 
   revalidatePath("/", "layout");
   redirect("/chat");
@@ -51,12 +62,19 @@ export async function signup(previousState: AuthActionResult, formData: FormData
   if (!email || !password) return { error: "Ievadi e-pastu un paroli." };
   if (password.length < 6) return { error: "Parolei jābūt vismaz 6 rakstzīmes garai." };
 
-  const supabase = await createClient();
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: { data: { display_name: displayName } },
-  });
+  let result: Awaited<ReturnType<Awaited<ReturnType<typeof createClient>>["auth"]["signUp"]>>;
+  try {
+    const supabase = await createClient();
+    result = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { display_name: displayName } },
+    });
+  } catch (cause) {
+    const message = cause instanceof Error ? cause.message : "auth server unavailable";
+    return { error: formatAuthError(message) };
+  }
+  const { data, error } = result;
   if (error) return { error: formatAuthError(error.message) };
 
   revalidatePath("/", "layout");
@@ -67,10 +85,32 @@ export async function signup(previousState: AuthActionResult, formData: FormData
   redirect("/onboarding");
 }
 
+export async function enterGuestMode() {
+  if (!isGuestModeEnabled()) redirect("/login");
+
+  const cookieStore = await cookies();
+  cookieStore.set(GUEST_COOKIE_NAME, "1", {
+    httpOnly: false,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60 * 24,
+  });
+
+  revalidatePath("/", "layout");
+  redirect("/chat");
+}
+
 export async function signout() {
+  const cookieStore = await cookies();
+  cookieStore.delete(GUEST_COOKIE_NAME);
   if (isSupabaseConfigured()) {
-    const supabase = await createClient();
-    await supabase.auth.signOut();
+    try {
+      const supabase = await createClient();
+      await supabase.auth.signOut();
+    } catch (error) {
+      console.error("Supabase sign-out failed:", error);
+    }
   }
   revalidatePath("/", "layout");
   redirect("/login");

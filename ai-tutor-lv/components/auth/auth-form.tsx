@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { useActionState } from "react";
 import { Bot, LoaderCircle } from "lucide-react";
-import { login, signup } from "@/app/(auth)/actions";
+import { enterGuestMode, login, signup } from "@/app/(auth)/actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { isGuestModeEnabled } from "@/lib/guest-mode";
 
 export function AuthForm({ mode }: { mode: "login" | "register" }) {
   const isLogin = mode === "login";
@@ -67,6 +68,19 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
               {pending ? "Lūdzu, uzgaidi…" : isLogin ? "Pieslēgties" : "Reģistrēt kontu"}
             </Button>
           </form>
+
+          {isLogin && isGuestModeEnabled() && (
+            <div className="mt-3 border-t border-border pt-3">
+              <form action={enterGuestMode}>
+                <Button type="submit" variant="outline" className="w-full">
+                  Turpināt kā viesim (priekšskatījums)
+                </Button>
+              </form>
+              <p className="mt-2 text-center text-xs text-muted-foreground">
+                Viesu režīms izmanto demo profilu; sarunas un XP netiek saglabātas.
+              </p>
+            </div>
+          )}
 
           <p className="mt-5 text-center text-sm text-muted-foreground">
             {isLogin ? "Nav konta? " : "Jau esi reģistrējies? "}

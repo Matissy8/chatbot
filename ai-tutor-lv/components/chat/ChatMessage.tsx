@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Bot, User } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import rehypeKatex from "rehype-katex";
@@ -10,7 +11,7 @@ interface ChatMessageProps {
   message: ChatMessageData;
 }
 
-export function ChatMessage({ message }: ChatMessageProps) {
+export const ChatMessage = memo(function ChatMessage({ message }: ChatMessageProps) {
   const isUser = message.role === "user";
 
   return (
@@ -84,4 +85,4 @@ export function ChatMessage({ message }: ChatMessageProps) {
       )}
     </div>
   );
-}
+});

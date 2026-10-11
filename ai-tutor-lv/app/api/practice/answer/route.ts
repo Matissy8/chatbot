@@ -1,10 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
+import { apiErrorResponse } from "@/lib/api-error";
 
 export const runtime = "nodejs";
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-export async function POST(request: Request) {
+async function handlePost(request: Request) {
   let body: { attemptId?: unknown; questionId?: unknown; selectedOption?: unknown };
   try {
     body = await request.json();
@@ -19,7 +20,7 @@ export async function POST(request: Request) {
 
   const supabase = await createClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) return new Response("Unauthorized", { status: 401 });
+  if (authError || !user) return Response.json({ error: "Sesija ir beigusies. Pieslēdzies vēlreiz." }, { status: 401 });
 
   const { data, error } = await supabase.rpc("submit_practice_answer", {
     p_attempt_id: body.attemptId,
@@ -32,4 +33,12 @@ export async function POST(request: Request) {
   }
   const result = Array.isArray(data) ? data[0] : data;
   return Response.json(result);
+}
+
+export async function POST(request: Request) {
+  try {
+    return await handlePost(request);
+  } catch (error) {
+    return apiErrorResponse(error, "Neizdevās pārbaudīt prakses atbildi. Mēģini vēlreiz.");
+  }
 }

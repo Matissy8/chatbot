@@ -1,0 +1,10 @@
+{
+  "framework": "nextjs",
+  "buildCommand": "NEXT_TELEMETRY_DISABLED=1 npm run build",
+  "devCommand": "NEXT_TELEMETRY_DISABLED=1 npm run dev",
+  "installCommand": "npm ci",
+  "cleanUrls": true,
+  "env": {
+    "NEXT_TELEMETRY_DISABLED": "1"
+  }
+}

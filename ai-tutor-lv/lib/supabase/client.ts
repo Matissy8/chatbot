@@ -1,5 +1,6 @@
 import { createBrowserClient } from "@supabase/ssr";
 import { getSupabaseEnvironment } from "@/lib/supabase/config";
+import { createTimeoutFetch } from "@/lib/supabase/fetch";
 
 export function createSupabaseBrowserClient() {
   const environment = getSupabaseEnvironment();
@@ -8,5 +9,7 @@ export function createSupabaseBrowserClient() {
     throw new Error("Supabase nav konfigurēts. Pievieno URL un anonīmo atslēgu .env.local failā.");
   }
 
-  return createBrowserClient(environment.url, environment.anonKey);
+  return createBrowserClient(environment.url, environment.anonKey, {
+    global: { fetch: createTimeoutFetch(15_000) },
+  });
 }

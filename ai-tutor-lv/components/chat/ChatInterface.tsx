@@ -19,6 +19,8 @@ import { ChatMessage } from "@/components/chat/ChatMessage";
 import { FloatingAssistant } from "@/components/chat/FloatingAssistant";
 import type { ChatMessage as ChatMessageData } from "@/lib/demo-data";
 import { useAppSession } from "@/components/providers/app-provider";
+import { streamChatReply } from "@/lib/chat-client";
+import { isAbort } from "@/lib/fetch-json";
 
 const suggestions = [
   { title: "Paskaidro D7 akorda atrisinājumu", subject: "Mūzika · Harmonija", icon: Music2 },
@@ -45,14 +47,20 @@ export function ChatInterface({
   const [imageAttached, setImageAttached] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const busyRef = useRef(false);
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages, loading]);
 
+  useEffect(() => () => abortRef.current?.abort(), []);
+
   async function sendMessage(text: string) {
     const trimmed = text.trim();
-    if (!trimmed || loading) return;
+    // The ref blocks double submits that happen before React re-renders the disabled state.
+    if (!trimmed || busyRef.current) return;
+    busyRef.current = true;
 
     const nextMessages: ChatMessageData[] = [...messages, { role: "user", content: trimmed }];
     setMessages([...nextMessages, { role: "assistant", content: "" }]);
@@ -60,42 +68,47 @@ export function ChatInterface({
     setImageAttached(false);
     setLoading(true);
 
+    const controller = new AbortController();
+    abortRef.current = controller;
+    let frame: number | null = null;
+    let latest = "";
+    const flush = () => {
+      frame = null;
+      setMessages([...nextMessages, { role: "assistant", content: latest }]);
+    };
+
     try {
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: nextMessages, chatId }),
+      const result = await streamChatReply({
+        messages: nextMessages,
+        chatId,
+        signal: controller.signal,
+        onText: (value) => {
+          latest = value;
+          if (frame === null) frame = requestAnimationFrame(flush);
+        },
       });
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({})) as { error?: string };
-        throw new Error(data.error ?? "Neizdevās saņemt atbildi.");
-      }
+      if (frame !== null) cancelAnimationFrame(frame);
+      setMessages([...nextMessages, { role: "assistant", content: result.text }]);
+      setChatId(result.chatId);
 
-      const responseChatId = response.headers.get("x-chat-id") ?? chatId;
-      setChatId(responseChatId ?? undefined);
-      if (!response.body) throw new Error("Atbildes straume nav pieejama.");
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let assistantText = "";
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        assistantText += decoder.decode(value, { stream: true });
-        setMessages([...nextMessages, { role: "assistant", content: assistantText }]);
-      }
-      assistantText += decoder.decode();
-      setMessages([...nextMessages, { role: "assistant", content: assistantText }]);
-      await refreshSession();
-
-      if (responseChatId && responseChatId !== chatId) {
-        router.replace(`/chat/${responseChatId}`, { scroll: false });
+      void refreshSession().catch(() => undefined);
+      if (result.chatId && result.chatId !== chatId) {
+        router.replace(`/chat/${result.chatId}`, { scroll: false });
       }
       window.dispatchEvent(new Event("chat-history-updated"));
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Neizdevās sazināties ar AI asistentu.";
-      setMessages([...nextMessages, { role: "assistant", content: `Atvaino — ${message}` }]);
+      if (frame !== null) cancelAnimationFrame(frame);
+      if (isAbort(error)) return;
+      const message = error instanceof Error && error.message ? error.message : "Neizdevās sazināties ar AI asistentu.";
+      // Keep any partial text the user already saw and append the error below it.
+      const partial = latest.trim();
+      setMessages([
+        ...nextMessages,
+        { role: "assistant", content: partial ? `${partial}\n\n_Atvaino — ${message}_` : `Atvaino — ${message}` },
+      ]);
     } finally {
+      busyRef.current = false;
+      abortRef.current = null;
       setLoading(false);
     }
   }

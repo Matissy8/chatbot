@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { fetchJson } from "@/lib/fetch-json";
 
 const MAX_IMAGE_SIZE = 8 * 1024 * 1024;
 const acceptedTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
@@ -71,9 +72,7 @@ export default function AssistantScreenPage() {
       data.set("image", image);
       data.set("subject", subject);
       data.set("prompt", prompt);
-      const response = await fetch("/api/assistant-screen", { method: "POST", body: data });
-      const result = await response.json() as { analysis?: string; error?: string };
-      if (!response.ok) throw new Error(result.error ?? "Neizdevās analizēt attēlu.");
+      const result = await fetchJson<{ analysis?: string }>("/api/assistant-screen", { method: "POST", body: data, timeoutMs: 65_000 });
       setAnalysis(result.analysis ?? "Analīze nav pieejama.");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Neizdevās analizēt attēlu.");

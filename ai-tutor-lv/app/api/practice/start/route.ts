@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { apiErrorResponse } from "@/lib/api-error";
 import { practiceDifficulties, practiceSubjects, type PracticeDifficulty, type PracticeSubject } from "@/lib/practice-data";
 
 export const runtime = "nodejs";
@@ -6,7 +7,7 @@ export const runtime = "nodejs";
 const subjects = new Set<PracticeSubject>(practiceSubjects.map(({ value }) => value));
 const difficulties = new Set<PracticeDifficulty>(practiceDifficulties.map(({ value }) => value));
 
-export async function POST(request: Request) {
+async function handlePost(request: Request) {
   let body: { subject?: unknown; difficulty?: unknown };
   try {
     body = await request.json();
@@ -23,7 +24,7 @@ export async function POST(request: Request) {
   const difficulty = body.difficulty as PracticeDifficulty;
   const supabase = await createClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) return new Response("Unauthorized", { status: 401 });
+  if (authError || !user) return Response.json({ error: "Sesija ir beigusies. Pieslēdzies vēlreiz." }, { status: 401 });
 
   const { data, error } = await supabase.rpc("start_practice_attempt", {
     p_subject: subject,
@@ -35,4 +36,12 @@ export async function POST(request: Request) {
   }
 
   return Response.json(data, { headers: { "Cache-Control": "no-store" } });
+}
+
+export async function POST(request: Request) {
+  try {
+    return await handlePost(request);
+  } catch (error) {
+    return apiErrorResponse(error, "Neizdevās sākt prakses uzdevumu. Mēģini vēlreiz.");
+  }
 }

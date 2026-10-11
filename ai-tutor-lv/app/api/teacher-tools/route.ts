@@ -1,8 +1,14 @@
 import { generateText } from "ai";
-import { getConfiguredModel, hasConfiguredAIProvider } from "@/lib/ai-provider";
+import { aiRequestOptions, cacheGet, cacheSet, getConfiguredModel, hasConfiguredAIProvider } from "@/lib/ai-provider";
 import { createClient } from "@/lib/supabase/server";
+import { cookies } from "next/headers";
+import { GUEST_COOKIE_NAME, isGuestModeEnabled } from "@/lib/guest-mode";
+import { apiErrorResponse } from "@/lib/api-error";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
+
+const RESOURCE_CACHE_TTL_MS = 60 * 60 * 1000;
 
 const resourceTypes = ["lesson-plan", "worksheet", "quiz"] as const;
 type ResourceType = (typeof resourceTypes)[number];
@@ -24,7 +30,7 @@ function buildFallbackResource(type: ResourceType, topic: string, grade: string)
   return `# Pārbaudes darbs: ${topic}\n\n**Klase:** ${grade}. klase  **Laiks:** 20 minūtes  **Punkti:** 10\n\nAtbildi uz jautājumiem un parādi risinājuma gaitu.\n\n1. (2 p.) Definē galveno jēdzienu, kas saistīts ar tēmu “${topic}”.\n2. (2 p.) Nosauc vienu piemēru un paskaidro, kā tas saistīts ar tēmu.\n3. (3 p.) Atrisini tipveida uzdevumu par “${topic}”, parādot starpsoļus.\n4. (3 p.) Salīdzini divas metodes vai piemērus un pamato savu secinājumu.\n\n## Skolotājam: vērtēšanas kritēriji un atbilžu atslēga\n- 1. jautājums: 2 p. par precīzu definīciju.\n- 2. jautājums: 1 p. par piemēru, 1 p. par pamatojumu.\n- 3. jautājums: 1 p. par metodes izvēli, 1 p. par pareiziem soļiem, 1 p. par atbildi.\n- 4. jautājums: līdz 3 p. par salīdzinājumu un pamatotu secinājumu.\n\nPirms izmantošanas pārskati un pielāgo uzdevumu savai mācību programmai.`;
 }
 
-export async function POST(request: Request) {
+async function handlePost(request: Request) {
   let body: { topic?: unknown; type?: unknown; grade?: unknown; subject?: unknown };
   try {
     body = await request.json();
@@ -40,22 +46,33 @@ export async function POST(request: Request) {
     return Response.json({ error: "Norādi tēmu, materiāla veidu un derīgu klašu līmeni." }, { status: 400 });
   }
 
-  const supabase = await createClient();
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) return new Response("Unauthorized", { status: 401 });
+  const cookieStore = await cookies();
+  const isGuest = isGuestModeEnabled() && cookieStore.get(GUEST_COOKIE_NAME)?.value === "1";
+  if (!isGuest) {
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) return Response.json({ error: "Sesija ir beigusies. Pieslēdzies vēlreiz." }, { status: 401 });
+  }
 
   const resourceType = type as ResourceType;
   const prompt = `Sagatavo ${resourceLabels[resourceType]} latviešu valodā. Priekšmets: ${subject}. Tēma: ${topic}. Klašu līmenis: ${grade || "vispārīgs"}.\n\nPrasības: lieto skaidru, drukāšanai piemērotu Markdown struktūru. Materiālam jābūt pedagoģiski korektam un vecumam atbilstošam. Iekļauj konkrētus uzdevumus, nevis tikai tukšas norādes. ${resourceType === "quiz" || resourceType === "worksheet" ? "Pievieno skolotājam paredzētu atbilžu atslēgu un īsus vērtēšanas kritērijus." : "Iekļauj mērķus, laika sadalījumu, mācību aktivitātes un diferencēšanas ieteikumus."}`;
 
   let content: string;
-  if (hasConfiguredAIProvider()) {
+  const cacheKey = `teacher|${resourceType}|${subject}|${grade}|${topic.toLowerCase()}`;
+  const cached = !isGuest ? cacheGet(cacheKey) : undefined;
+  if (cached) {
+    content = cached;
+  } else if (!isGuest && hasConfiguredAIProvider()) {
     try {
       const { text } = await generateText({
         model: getConfiguredModel(),
+        ...aiRequestOptions(50_000, 2500, request.signal),
         system: "Tu esi pieredzējis Latvijas skolotājs un mācību materiālu redaktors. Veido precīzus, praktiskus un iekļaujošus materiālus.",
         prompt,
       });
+      if (!text.trim()) throw new Error("Empty AI response");
       content = text;
+      cacheSet(cacheKey, content, RESOURCE_CACHE_TTL_MS);
     } catch (error) {
       console.error("Teacher material AI generation failed:", error);
       content = buildFallbackResource(resourceType, topic, grade || "vispārīgā");
@@ -65,4 +82,12 @@ export async function POST(request: Request) {
   }
 
   return Response.json({ content, type: resourceType, topic });
+}
+
+export async function POST(request: Request) {
+  try {
+    return await handlePost(request);
+  } catch (error) {
+    return apiErrorResponse(error, "Neizdevās izveidot mācību materiālu. Mēģini vēlreiz.");
+  }
 }
