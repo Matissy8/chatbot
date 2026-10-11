@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AI Tutor Latvija",
-  description: "Chat-first education platform for Latvian schools and music education.",
+  title: "Maestro – Tavs AI mācību asistents",
+  description: "Inteliģenta un personalizēta mācību platforma.",
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {

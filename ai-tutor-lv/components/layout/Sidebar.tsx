@@ -144,7 +144,7 @@ export function Sidebar() {
                 <Music2 className="h-5 w-5 stroke-[1.75]" />
               </div>
               <div className="overflow-hidden">
-                <h1 className="text-base font-semibold leading-none tracking-tight text-foreground">AITutor LV</h1>
+                <h1 className="text-base font-semibold leading-none tracking-tight text-foreground">Maestro</h1>
                 <p className="mt-1 truncate text-[11px] text-muted-foreground">Inteliģentais mācību asistents</p>
               </div>
             </Link>

@@ -1,6 +1,6 @@
-# AI Tutor Latvija
+# Maestro
 
-AI-first educational platform designed for Latvian schools, music schools, music high schools, teachers, and independent learners.
+Personalized AI learning platform for Latvian schools, music schools, teachers, and independent learners.
 
 ## Features
 

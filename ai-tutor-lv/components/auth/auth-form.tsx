@@ -23,7 +23,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
             <Bot className="h-6 w-6" aria-hidden="true" />
           </div>
           <CardTitle className="text-2xl font-bold tracking-tight text-foreground">
-            {isLogin ? "Esi sveicināts AITutor LV" : "Izveido savu kontu"}
+            {isLogin ? "Esi sveicināts Maestro" : "Izveido savu kontu"}
           </CardTitle>
           <CardDescription>
             {isLogin ? "Ienāc, lai turpinātu mācīties un krātu XP." : "Reģistrējies, lai sāktu personalizētu mācību ceļu."}

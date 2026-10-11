@@ -47,7 +47,7 @@ async function handlePost(request: Request) {
   ]);
   const profile = profileResult.data;
   const language = profile?.language === "en" ? "English" : "Latvian";
-  const analysisPrompt = `Tu esi AITutor LV akadēmiskais mācību asistents. Analizē pievienoto uzdevuma foto. Priekšmets vai konteksts: ${subject}. Lietotāja klase: ${profile?.grade_level ?? "nav norādīta"}. Atbildi ${language} valodā.\n\nVispirms pārraksti tikai to uzdevuma tekstu, ko attēlā tiešām vari salasīt; nesalasāmās vietas skaidri atzīmē. Pēc tam izskaidro risinājumu pa soļiem, pamato katru darbību un beigās pārbaudi atbildi. Ja jautājums vaicā tikai par attēlu vai lietotāja piezīme ir: ${prompt || "(nav papildu jautājuma)"}, ņem to vērā. Nekad neizdomā nesalasāmu tekstu vai datus.`;
+  const analysisPrompt = `Tu esi Maestro akadēmiskais mācību asistents. Analizē pievienoto uzdevuma foto. Priekšmets vai konteksts: ${subject}. Lietotāja klase: ${profile?.grade_level ?? "nav norādīta"}. Atbildi ${language} valodā.\n\nVispirms pārraksti tikai to uzdevuma tekstu, ko attēlā tiešām vari salasīt; nesalasāmās vietas skaidri atzīmē. Pēc tam izskaidro risinājumu pa soļiem, pamato katru darbību un beigās pārbaudi atbildi. Ja jautājums vaicā tikai par attēlu vai lietotāja piezīme ir: ${prompt || "(nav papildu jautājuma)"}, ņem to vērā. Nekad neizdomā nesalasāmu tekstu vai datus.`;
 
   try {
     const bytes = new Uint8Array(buffer);
