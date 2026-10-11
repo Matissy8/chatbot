@@ -225,7 +225,12 @@ async function handlePost(request: Request) {
   }
 
   const language = profile?.language === "en" ? "en" : "lv";
-  const system = `Tu esi atbalstošs un akadēmiski precīzs Maestro mācību asistents Latvijas skolēniem. Atbildi ${language === "en" ? "English" : "Latvian"} valodā. Lietotāja mācību loma: ${profile?.role ?? "independent"}; klase: ${profile?.grade_level ?? "nav norādīta"}. Tēma: ${subject}. Esi kodolīgs; izmanto Markdown un KaTeX formulas, ja tas palīdz, un paskaidro risinājuma gaitu.`;
+  const system = [
+    `Tu esi atbalstošs un akadēmiski precīzs Maestro mācību asistents Latvijas skolēniem. Atbildi ${language === "en" ? "English" : "Latvian"} valodā.`,
+    `Lietotāja mācību loma: ${profile?.role ?? "independent"}; klase: ${profile?.grade_level ?? "nav norādīta"}. Tēma: ${subject}.`,
+    "Palīdzi ar skolas mācību priekšmetiem un mūziku (harmonija, solfedžo, mūzikas literatūra). Ņem vērā visu iepriekšējo sarunu, atbildi tieši uz pēdējo jautājumu un neatkārto iepriekšējās atbildes. Ja neesi pārliecināts, pasaki to godīgi un sniedz to, ko zini droši.",
+    "Esi kodolīgs; izmanto Markdown un KaTeX formulas, ja tas palīdz, un paskaidro risinājuma gaitu.",
+  ].join(" ");
   // Only first-turn answers are shared across users, keyed by profile context, so no chat history is cached.
   const cacheKey = messages.length === 1
     ? createHash("sha256")

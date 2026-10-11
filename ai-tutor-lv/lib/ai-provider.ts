@@ -76,7 +76,7 @@ export function hasConfiguredAIProvider() {
 export function getConfiguredModel() {
   const { openAiKey, anthropicKey, geminiKey } = getUsableProviderKeys();
   if (openAiKey) return openai("gpt-4o-mini");
-  if (anthropicKey) return anthropic("claude-3-5-sonnet-20240620");
+  if (anthropicKey) return anthropic("claude-sonnet-5-5");
   if (geminiKey) return createGoogle({ apiKey: geminiKey })("gemini-2.5-flash");
   throw new Error("No AI provider API key is configured.");
 }
