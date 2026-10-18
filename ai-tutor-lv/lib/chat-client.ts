@@ -1,5 +1,6 @@
-import { RequestError, assertSession, readErrorMessage, toRequestError } from "@/lib/fetch-json";
+import { RequestError, assertSession, readErrorDetails, toRequestError } from "@/lib/fetch-json";
 import type { ChatMessage } from "@/lib/demo-data";
+import { DAILY_LIMIT_CODE } from "@/lib/plans";
 
 const FIRST_BYTE_TIMEOUT_MS = 45_000;
 const IDLE_TIMEOUT_MS = 30_000;
@@ -35,7 +36,13 @@ export async function streamChatReply({
       signal: controller.signal,
     });
     assertSession(response);
-    if (!response.ok) throw new RequestError(await readErrorMessage(response), "server");
+    if (!response.ok) {
+      const details = await readErrorDetails(response);
+      if (response.status === 429 && details.code === DAILY_LIMIT_CODE) {
+        throw new RequestError(details.message, "limit", details.limit);
+      }
+      throw new RequestError(details.message, "server");
+    }
     if (!response.body) throw new RequestError("Atbildes straume nav pieejama.", "server");
 
     const nextChatId = response.headers.get("x-chat-id") ?? chatId;

@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState, type ComponentType } from "react";
 import {
   BookOpen,
   Contrast,
+  Crown,
   GraduationCap,
   Languages,
   Laptop,
@@ -55,6 +56,7 @@ const navGroups: { label: string; items: NavEntry[] }[] = [
       { href: "/teacher-tools", label: "Skolotāja režīms", icon: GraduationCap },
       { href: "/assistant-screen", label: "Ekrāna un foto palīgs", icon: Laptop },
       { href: "/profile", label: "Profils", icon: UserRound },
+      { href: "/pricing", label: "Plāni", icon: Crown },
       { href: "/settings", label: "Iestatījumi", icon: Settings },
     ],
   },

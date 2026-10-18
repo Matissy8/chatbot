@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { Bot, LoaderCircle } from "lucide-react";
 import { enterGuestMode, login, signup } from "@/app/(auth)/actions";
+import { GoogleAuthButton } from "@/components/auth/google-auth-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,9 +12,18 @@ import { Label } from "@/components/ui/label";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { isGuestModeEnabled } from "@/lib/guest-mode";
 
-export function AuthForm({ mode }: { mode: "login" | "register" }) {
+export function AuthForm({
+  mode,
+  googleEnabled = false,
+  initialError,
+}: {
+  mode: "login" | "register";
+  googleEnabled?: boolean;
+  initialError?: string;
+}) {
   const isLogin = mode === "login";
-  const [state, formAction, pending] = useActionState(isLogin ? login : signup, {});
+  const [state, formAction, pending] = useActionState(isLogin ? login : signup, initialError ? { error: initialError } : {});
+  const [oauthError, setOauthError] = useState<string | null>(null);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-5">
@@ -61,6 +71,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
             </div>
 
             {state.error && <p className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive" role="alert">{state.error}</p>}
+            {oauthError && <p className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive" role="alert">{oauthError}</p>}
             {state.message && <p className="rounded-lg border border-border bg-muted p-3 text-sm text-foreground" role="status">{state.message}</p>}
 
             <Button type="submit" disabled={pending} className="w-full">
@@ -68,6 +79,17 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
               {pending ? "Lūdzu, uzgaidi…" : isLogin ? "Pieslēgties" : "Reģistrēt kontu"}
             </Button>
           </form>
+
+          {googleEnabled && isSupabaseConfigured() && (
+            <div className="mt-4 space-y-4">
+              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                <span className="h-px flex-1 bg-border" />
+                vai
+                <span className="h-px flex-1 bg-border" />
+              </div>
+              <GoogleAuthButton onError={setOauthError} />
+            </div>
+          )}
 
           {isLogin && isGuestModeEnabled() && (
             <div className="mt-3 border-t border-border pt-3">

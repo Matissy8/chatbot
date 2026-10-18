@@ -14,6 +14,8 @@ import { GUEST_COOKIE_NAME, isGuestModeEnabled } from "@/lib/guest-mode";
 import { createClient } from "@/lib/supabase/server";
 import { awardXP } from "@/lib/xp";
 import { apiErrorResponse } from "@/lib/api-error";
+import { consumeChatCredit } from "@/lib/credits";
+import { DAILY_LIMIT_CODE } from "@/lib/plans";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -174,6 +176,14 @@ async function handlePost(request: Request) {
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) return Response.json({ error: "Sesija ir beigusies. Pieslēdzies vēlreiz." }, { status: 401 });
   const userId = user.id;
+
+  const credit = await consumeChatCredit(supabase);
+  if (credit.blocked) {
+    return Response.json(
+      { error: `Šodienas bezmaksas limits (${credit.limit} jautājumi) ir sasniegts.`, code: DAILY_LIMIT_CODE, limit: credit.limit },
+      { status: 429, headers: { "Cache-Control": "no-store" } }
+    );
+  }
 
   const subject = getSubject(lastMessage.content, body.subject);
   const requestedChatId = typeof body.chatId === "string" && body.chatId.length > 0 ? body.chatId : undefined;

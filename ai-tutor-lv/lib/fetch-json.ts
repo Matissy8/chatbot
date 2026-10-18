@@ -1,5 +1,9 @@
 export class RequestError extends Error {
-  constructor(message: string, readonly kind: "timeout" | "network" | "session" | "server" | "aborted") {
+  constructor(
+    message: string,
+    readonly kind: "timeout" | "network" | "session" | "server" | "aborted" | "limit",
+    readonly limit?: number
+  ) {
     super(message);
     this.name = "RequestError";
   }
@@ -14,6 +18,10 @@ const MESSAGES = {
 
 export function isAbort(error: unknown) {
   return error instanceof RequestError && error.kind === "aborted";
+}
+
+export function isLimitReached(error: unknown): error is RequestError {
+  return error instanceof RequestError && error.kind === "limit";
 }
 
 export function toRequestError(error: unknown, signal?: AbortSignal): RequestError {
@@ -33,15 +41,19 @@ export function assertSession(response: Response) {
   }
 }
 
-export async function readErrorMessage(response: Response) {
+export async function readErrorDetails(response: Response): Promise<{ message: string; code?: string; limit?: number }> {
   const text = await response.text().catch(() => "");
   try {
-    const data = JSON.parse(text) as { error?: string };
-    if (data.error) return data.error;
+    const data = JSON.parse(text) as { error?: string; code?: string; limit?: number };
+    if (data.error) return { message: data.error, code: data.code, limit: data.limit };
   } catch {
     // Not JSON.
   }
-  return response.status === 401 ? MESSAGES.session : MESSAGES.server;
+  return { message: response.status === 401 ? MESSAGES.session : MESSAGES.server };
+}
+
+export async function readErrorMessage(response: Response) {
+  return (await readErrorDetails(response)).message;
 }
 
 export function withTimeout(timeoutMs: number, external?: AbortSignal) {

@@ -8,6 +8,7 @@ on:
       - "ai-tutor-lv/supabase/schema.sql"
       - "ai-tutor-lv/supabase/schema_chat_xp.sql"
       - "ai-tutor-lv/supabase/schema_practice.sql"
+      - "ai-tutor-lv/supabase/schema_plans.sql"
       - ".github/workflows/supabase-schema.yml"
   workflow_dispatch:
 
@@ -36,6 +37,7 @@ jobs:
           psql "$SUPABASE_DB_URL" --set ON_ERROR_STOP=1 --single-transaction --file=ai-tutor-lv/supabase/schema.sql
           psql "$SUPABASE_DB_URL" --set ON_ERROR_STOP=1 --single-transaction --file=ai-tutor-lv/supabase/schema_chat_xp.sql
           psql "$SUPABASE_DB_URL" --set ON_ERROR_STOP=1 --single-transaction --file=ai-tutor-lv/supabase/schema_practice.sql
+          psql "$SUPABASE_DB_URL" --set ON_ERROR_STOP=1 --single-transaction --file=ai-tutor-lv/supabase/schema_plans.sql
 
       - name: Explain missing database secret
         if: ${{ env.SUPABASE_DB_URL == '' }}

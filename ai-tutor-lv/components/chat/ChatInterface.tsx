@@ -17,10 +17,11 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ChatMessage } from "@/components/chat/ChatMessage";
 import { FloatingAssistant } from "@/components/chat/FloatingAssistant";
+import { LimitReachedModal } from "@/components/chat/LimitReachedModal";
 import type { ChatMessage as ChatMessageData } from "@/lib/demo-data";
 import { useAppSession } from "@/components/providers/app-provider";
 import { streamChatReply } from "@/lib/chat-client";
-import { isAbort } from "@/lib/fetch-json";
+import { isAbort, isLimitReached } from "@/lib/fetch-json";
 
 const suggestions = [
   { title: "Paskaidro D7 akorda atrisinājumu", subject: "Mūzika · Harmonija", icon: Music2 },
@@ -46,6 +47,7 @@ export function ChatInterface({
   const [loading, setLoading] = useState(false);
   const [imageAttached, setImageAttached] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
+  const [limit, setLimit] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const busyRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
@@ -99,6 +101,13 @@ export function ChatInterface({
     } catch (error) {
       if (frame !== null) cancelAnimationFrame(frame);
       if (isAbort(error)) return;
+      if (isLimitReached(error)) {
+        // The server rejected this question before saving it, so keep the thread as it was and let the user retry later.
+        setMessages(messages);
+        setInput(trimmed);
+        setLimit(error.limit ?? 0);
+        return;
+      }
       const message = error instanceof Error && error.message ? error.message : "Neizdevās sazināties ar AI asistentu.";
       // Keep any partial text the user already saw and append the error below it.
       const partial = latest.trim();
@@ -272,6 +281,7 @@ export function ChatInterface({
       </footer>
 
       <FloatingAssistant />
+      <LimitReachedModal open={limit !== null} onOpenChange={(open) => !open && setLimit(null)} limit={limit || undefined} />
     </section>
   );
 }

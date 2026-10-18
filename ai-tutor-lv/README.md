@@ -30,7 +30,7 @@ Personalized AI learning platform for Latvian schools, music schools, teachers, 
    cp .env.example .env.local
 3. Add the Supabase project URL and anon/publishable key to `.env.local`. For Gemini, create a key in Google AI Studio and set `GEMINI_API_KEY`; OpenAI and Anthropic are also supported.
    To temporarily enable a non-persistent guest preview, set `NEXT_PUBLIC_ENABLE_GUEST_MODE=true` and restart the dev server. Remove the flag or set it to `false` when ready for authenticated-only access. Guest chat uses the local response fallback, practice scores remain in the browser, and teacher tools use local templates; guest activity is not saved and earns no XP. Photo AI analysis requires an authenticated account.
-4. In the Supabase SQL Editor, run `supabase/schema.sql`.
+4. In the Supabase SQL Editor, run `supabase/schema.sql`, `supabase/schema_chat_xp.sql`, `supabase/schema_practice.sql` and `supabase/schema_plans.sql` in that order.
 5. For immediate signup-to-onboarding testing, disable email confirmation in Supabase Auth; otherwise users must confirm their email before signing in.
 6. Start the app:
    npm run dev
@@ -42,7 +42,15 @@ See .env.example.
 
 ## Database setup
 
-Run `supabase/schema.sql`, then `supabase/schema_chat_xp.sql`, then `supabase/schema_practice.sql`. These create profiles/auth setup, private chat history and XP awarding, and the private question bank plus secure one-time practice XP. Do not expose a Supabase service-role key in client code; the app uses the public anon/publishable key with RLS.
+Run `supabase/schema.sql`, then `supabase/schema_chat_xp.sql`, then `supabase/schema_practice.sql`, then `supabase/schema_plans.sql`. These create profiles/auth setup, private chat history and XP awarding, the private question bank plus secure one-time practice XP, and subscription plans with the daily chat limit. Do not expose a Supabase service-role key in client code; the app uses the public anon/publishable key with RLS.
+
+### Plans and daily limit
+
+Free users get 10 AI chat questions per day (the day rolls over at midnight in Latvia); PRO users are unlimited. The limit is enforced atomically in the database (`consume_chat_credit()`) and checked in `/api/chat`, so it cannot be bypassed from the browser. Clients cannot change their own plan. Until payments are connected, set a user's plan manually in the Supabase SQL Editor: `update public.profiles set plan = 'pro' where id = '<user id>';`. To change the limit, edit `free_daily_chat_limit()` in `schema_plans.sql` and `FREE_DAILY_QUESTION_LIMIT` in `lib/plans.ts` (display copy only).
+
+### Google sign-in
+
+The "Turpināt ar Google" button appears automatically once Google is enabled in Supabase. Create an OAuth client in Google Cloud Console, then in Supabase go to Authentication > Providers > Google and enter its client ID and secret. Add `https://<your-supabase-project>.supabase.co/auth/v1/callback` as an authorized redirect URI in Google Cloud, and add `http://localhost:3000/auth/callback` plus your production URL's `/auth/callback` under Supabase Authentication > URL Configuration > Redirect URLs.
 
 ## Production deployment
 
@@ -54,7 +62,7 @@ For a manual production deploy, authenticate the Vercel CLI (`vercel login`) and
 
 ### Supabase database deployment
 
-The repository includes `.github/workflows/supabase-schema.yml`. To enable automatic schema application when the SQL files change, add a repository Actions secret named `SUPABASE_DB_URL` containing the Supabase PostgreSQL **Session pooler** connection URI (use the connection details from the Supabase dashboard; do not commit it or use the service-role key). The workflow runs the three idempotent SQL files in order on pushes to `main` and can also be started manually from GitHub Actions. If the secret is not configured, the workflow skips database deployment.
+The repository includes `.github/workflows/supabase-schema.yml`. To enable automatic schema application when the SQL files change, add a repository Actions secret named `SUPABASE_DB_URL` containing the Supabase PostgreSQL **Session pooler** connection URI (use the connection details from the Supabase dashboard; do not commit it or use the service-role key). The workflow runs the four idempotent SQL files in order on pushes to `main` and can also be started manually from GitHub Actions. If the secret is not configured, the workflow skips database deployment.
 
 Set Vercel environment variables separately in Vercel; GitHub Actions secrets are not automatically copied to Vercel.
 

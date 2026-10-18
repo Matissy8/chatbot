@@ -6,9 +6,10 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ChatMessage } from "@/components/chat/ChatMessage";
+import { LimitReachedModal } from "@/components/chat/LimitReachedModal";
 import type { ChatMessage as ChatMessageData } from "@/lib/demo-data";
 import { streamChatReply } from "@/lib/chat-client";
-import { isAbort } from "@/lib/fetch-json";
+import { isAbort, isLimitReached } from "@/lib/fetch-json";
 
 export function FloatingAssistant() {
   const [isOpen, setIsOpen] = useState(false);
@@ -19,6 +20,7 @@ export function FloatingAssistant() {
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [limit, setLimit] = useState<number | null>(null);
   const messagesRef = useRef<HTMLDivElement>(null);
   const busyRef = useRef(false);
   const chatIdRef = useRef<string | undefined>(undefined);
@@ -54,6 +56,12 @@ export function FloatingAssistant() {
       window.dispatchEvent(new Event("chat-history-updated"));
     } catch (error) {
       if (isAbort(error)) return;
+      if (isLimitReached(error)) {
+        setMessages(messages);
+        setInput(text);
+        setLimit(error.limit ?? 0);
+        return;
+      }
       setMessages([
         ...nextMessages,
         { role: "assistant", content: error instanceof Error && error.message ? error.message : "Neizdevās sazināties ar asistentu." },
@@ -67,6 +75,7 @@ export function FloatingAssistant() {
 
   return (
     <div className="fixed bottom-4 right-4 z-50 sm:bottom-5 sm:right-5">
+      <LimitReachedModal open={limit !== null} onOpenChange={(open) => !open && setLimit(null)} limit={limit || undefined} />
       {!isOpen ? (
         <Button
           type="button"
