@@ -34,11 +34,12 @@ function parseUserType(value: unknown): UserType {
 
 async function getAppSession(user: User): Promise<AppSession> {
   const supabase = createSupabaseBrowserClient();
-  const { data: profile } = await supabase
+  const { data: profile, error } = await supabase
     .from("profiles")
     .select("display_name, role, grade_level, language, xp, streak, last_active_at, onboarding_completed_at")
     .eq("id", user.id)
     .maybeSingle();
+  if (error) throw error;
   const xp = Number(profile?.xp ?? 0);
   const level = calculateLevel(xp).level;
   const language = parseLanguage(profile?.language) ?? "lv";

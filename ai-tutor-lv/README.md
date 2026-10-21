@@ -34,7 +34,7 @@ Personalized AI learning platform for Latvian schools, music schools, teachers, 
    cp .env.example .env.local
 3. Add the Supabase project URL and anon/publishable key to `.env.local`. For Gemini, create a key in Google AI Studio and set `GEMINI_API_KEY`; OpenAI and Anthropic are also supported.
    To temporarily enable a non-persistent guest preview, set `NEXT_PUBLIC_ENABLE_GUEST_MODE=true` and restart the dev server. Remove the flag or set it to `false` when ready for authenticated-only access. Guest chat uses the local response fallback, practice scores remain in the browser, and teacher tools use local templates; guest activity is not saved and earns no XP. Photo AI analysis requires an authenticated account.
-4. In the Supabase SQL Editor, run `supabase/schema_full.sql`, then `supabase/schema_learning_features.sql`.
+4. In the Supabase SQL Editor, run `supabase/schema_full.sql`, `supabase/schema_learning_features.sql`, then `supabase/schema_leaderboard.sql`.
 5. For immediate signup-to-onboarding testing, disable email confirmation in Supabase Auth; otherwise users must confirm their email before signing in.
 6. Start the app:
    npm run dev
@@ -46,7 +46,7 @@ See .env.example.
 
 ## Database setup
 
-For manual setup or to update an existing database, run `supabase/schema_full.sql`, then `supabase/schema_learning_features.sql` in the Supabase SQL Editor. The full schema combines `schema.sql`, `schema_chat_xp.sql`, `schema_practice.sql`, and `schema_plans.sql` in dependency order and adds newly required profile columns to existing `profiles` tables. The additional learning schema installs protected quiz attempts, per-answer XP awards, Latvia-time-zone activity streaks, flashcard progress, and sequential learning-path progress. The GitHub Actions workflow applies the five component files individually in dependency order. These create profiles/auth setup, private chat history and XP awarding, the private question bank plus secure one-time practice XP, subscription plans and the daily chat limit, and the new learning features. Do not expose a Supabase service-role key in client code; the app uses the public anon/publishable key with RLS.
+For manual setup or to update an existing database, run `supabase/schema_full.sql`, `supabase/schema_learning_features.sql`, then `supabase/schema_leaderboard.sql` in the Supabase SQL Editor. The full schema combines `schema.sql`, `schema_chat_xp.sql`, `schema_practice.sql`, and `schema_plans.sql` in dependency order and adds newly required profile columns to existing `profiles` tables. The learning schema installs protected quiz attempts, per-answer XP awards, Latvia-time-zone activity streaks, flashcard progress, and sequential learning-path progress. The leaderboard schema adds an authenticated database function that returns only ranked display names, XP, and streaks; the page refreshes these real rankings every 60 seconds. The GitHub Actions workflow applies all six component files individually in dependency order. Do not expose a Supabase service-role key in client code; the app uses the public anon/publishable key with RLS.
 
 ### Interface language
 
@@ -70,7 +70,7 @@ For a manual production deploy, authenticate the Vercel CLI (`vercel login`) and
 
 ### Supabase database deployment
 
-The repository includes `.github/workflows/supabase-schema.yml`. To enable automatic schema application when the SQL files change, add a repository Actions secret named `SUPABASE_DB_URL` containing the Supabase PostgreSQL **Session pooler** connection URI (use the connection details from the Supabase dashboard; do not commit it or use the service-role key). The workflow runs the five idempotent SQL files in order on pushes to `main` and can also be started manually from GitHub Actions. If the secret is not configured, the workflow skips database deployment.
+The repository includes `.github/workflows/supabase-schema.yml`. To enable automatic schema application when the SQL files change, add a repository Actions secret named `SUPABASE_DB_URL` containing the Supabase PostgreSQL **Session pooler** connection URI (use the connection details from the Supabase dashboard; do not commit it or use the service-role key). The workflow runs all six idempotent SQL files in order on pushes to `main` and can also be started manually from GitHub Actions. If the secret is not configured, the workflow skips database deployment.
 
 Set Vercel environment variables separately in Vercel; GitHub Actions secrets are not automatically copied to Vercel.
 
