@@ -502,7 +502,7 @@ returns integer
 language sql
 immutable
 set search_path = ''
-as $$ select 10 $$;
+as $$ select 20 $$;
 
 create table if not exists public.daily_usage (
   user_id uuid not null references auth.users (id) on delete cascade,

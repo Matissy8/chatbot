@@ -20,7 +20,7 @@ const proFeatures = [
   "Viss, kas iekļauts bezmaksas plānā",
 ];
 
-export function PricingSection({ plan, used }: { plan: Plan; used?: number }) {
+export function PricingSection({ plan, used, usageError }: { plan: Plan; used?: number | null; usageError?: string }) {
   const isPro = plan === "pro";
   const { language } = useAppSession();
   const tr = (text: string) => translate(language, text);
@@ -46,10 +46,18 @@ export function PricingSection({ plan, used }: { plan: Plan; used?: number }) {
               </p>
               {!isPro && used !== undefined && (
                 <div className="space-y-1.5" role="status">
-                  <Progress value={Math.min(100, (used / FREE_DAILY_QUESTION_LIMIT) * 100)} />
-                  <p className="text-xs text-muted-foreground">
-                    {tr("Šodien izmantoti")} {used} {tr("no")} {FREE_DAILY_QUESTION_LIMIT} {tr("jautājumiem")}
-                  </p>
+                  {used === null ? (
+                    <p className="text-xs text-amber-700 dark:text-amber-300" role="alert" title={usageError}>
+                      {tr("Šodienas limits")}: — / {FREE_DAILY_QUESTION_LIMIT} ({tr("neizdevās nolasīt")})
+                    </p>
+                  ) : (
+                    <>
+                      <Progress value={Math.min(100, (used / FREE_DAILY_QUESTION_LIMIT) * 100)} />
+                      <p className="text-xs text-muted-foreground">
+                        {tr("Šodien izmantoti")} {used} {tr("no")} {FREE_DAILY_QUESTION_LIMIT} {tr("jautājumiem")}
+                      </p>
+                    </>
+                  )}
                 </div>
               )}
               <ul className="space-y-3 text-sm">

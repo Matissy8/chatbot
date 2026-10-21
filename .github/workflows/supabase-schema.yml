@@ -7,6 +7,7 @@ on:
     paths:
       - "ai-tutor-lv/supabase/schema.sql"
       - "ai-tutor-lv/supabase/schema_chat_xp.sql"
+      - "ai-tutor-lv/supabase/schema_chat_compat.sql"
       - "ai-tutor-lv/supabase/schema_practice.sql"
       - "ai-tutor-lv/supabase/schema_plans.sql"
       - "ai-tutor-lv/supabase/schema_learning_features.sql"
@@ -38,6 +39,7 @@ jobs:
           set -euo pipefail
           psql "$SUPABASE_DB_URL" --set ON_ERROR_STOP=1 --single-transaction --file=ai-tutor-lv/supabase/schema.sql
           psql "$SUPABASE_DB_URL" --set ON_ERROR_STOP=1 --single-transaction --file=ai-tutor-lv/supabase/schema_chat_xp.sql
+          psql "$SUPABASE_DB_URL" --set ON_ERROR_STOP=1 --single-transaction --file=ai-tutor-lv/supabase/schema_chat_compat.sql
           psql "$SUPABASE_DB_URL" --set ON_ERROR_STOP=1 --single-transaction --file=ai-tutor-lv/supabase/schema_practice.sql
           psql "$SUPABASE_DB_URL" --set ON_ERROR_STOP=1 --single-transaction --file=ai-tutor-lv/supabase/schema_plans.sql
           psql "$SUPABASE_DB_URL" --set ON_ERROR_STOP=1 --single-transaction --file=ai-tutor-lv/supabase/schema_learning_features.sql
