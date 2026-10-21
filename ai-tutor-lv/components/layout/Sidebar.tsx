@@ -8,6 +8,7 @@ import {
   Contrast,
   Crown,
   GraduationCap,
+  Headphones,
   Layers,
   Languages,
   Laptop,
@@ -49,6 +50,7 @@ const navGroups: { label: string; items: NavEntry[] }[] = [
     label: "Mūzikas treniņi",
     items: [
       { href: "/quiz", label: "Zibens-viktorīna", icon: Zap },
+      { href: "/audio-quiz", label: "Klausīšanās viktorīna", icon: Headphones },
       { href: "/flashcards", label: "Mūzikas kartītes", icon: Layers },
       { href: "/learning-path", label: "Mācību ceļvedis", icon: Map },
     ],

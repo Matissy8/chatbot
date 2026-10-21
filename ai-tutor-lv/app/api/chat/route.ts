@@ -14,6 +14,7 @@ import { GUEST_COOKIE_NAME, isGuestModeEnabled } from "@/lib/guest-mode";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { awardXP } from "@/lib/xp";
+import { cancelReservation, getReservationId, isConfirmed } from "@/lib/usage-reservation";
 import { apiErrorResponse } from "@/lib/api-error";
 import { DAILY_LIMIT_CODE, FREE_DAILY_QUESTION_LIMIT } from "@/lib/plans";
 import type { TutorLanguage } from "@/lib/ai-provider";
@@ -43,21 +44,6 @@ function getSubject(text: string, requestedSubject: unknown): string {
   return SUBJECTS.find((subject) => normalized.includes(subject.toLocaleLowerCase("lv"))) ?? "General";
 }
 
-function getReservationId(value: unknown): string | null {
-  if (typeof value === "string" && value) return value;
-  if (Array.isArray(value)) return getReservationId(value[0]);
-  if (typeof value === "object" && value !== null && "reservation_id" in value) {
-    return getReservationId(value.reservation_id);
-  }
-  return null;
-}
-
-function isConfirmed(value: unknown) {
-  if (value === true) return true;
-  if (Array.isArray(value)) return isConfirmed(value[0]);
-  return typeof value === "object" && value !== null && "confirmed" in value && value.confirmed === true;
-}
-
 async function persistAssistantReply(supabase: ServerClient, chatId: string, userId: string, text: string, subject: string) {
   const { error } = await supabase.from("messages").insert({ chat_id: chatId, role: "assistant", content: text });
   if (error) {
@@ -69,15 +55,6 @@ async function persistAssistantReply(supabase: ServerClient, chatId: string, use
     await awardXP(userId, 15, "Uzdots jautājums AI asistentam", subject);
   } catch (error) {
     console.error("Failed to award chat XP:", error);
-  }
-}
-
-async function cancelReservation(admin: ReturnType<typeof createAdminClient>, reservationId: string) {
-  try {
-    const { error } = await admin.rpc("cancel_daily_usage", { p_reservation_id: reservationId });
-    if (error) console.error("Failed to cancel daily chat reservation:", error);
-  } catch (error) {
-    console.error("Failed to cancel daily chat reservation:", error);
   }
 }
 
