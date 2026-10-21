@@ -10,7 +10,7 @@ export type AppSession = {
   xp: number;
   level: number;
   streak: number;
-  lastActive: string;
+  lastActive: string | null;
   onboardingComplete: boolean;
   isGuest?: boolean;
 };

@@ -22,7 +22,7 @@ function createGuestSession(): AppSession {
     xp: 0,
     level: 1,
     streak: 0,
-    lastActive: new Date().toISOString(),
+    lastActive: null,
     onboardingComplete: true,
     isGuest: true,
   };
@@ -53,7 +53,7 @@ async function getAppSession(user: User): Promise<AppSession> {
     xp,
     level,
     streak: Number(profile?.streak ?? 0),
-    lastActive: profile?.last_active_at ?? new Date().toISOString(),
+    lastActive: profile?.last_active_at ?? null,
     onboardingComplete: Boolean(profile?.onboarding_completed_at),
   };
 }

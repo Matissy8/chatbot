@@ -8,9 +8,11 @@ import {
   Contrast,
   Crown,
   GraduationCap,
+  Layers,
   Languages,
   Laptop,
   LogOut,
+  Map,
   MessageSquare,
   Moon,
   Music2,
@@ -21,6 +23,7 @@ import {
   TrendingUp,
   Trophy,
   UserRound,
+  Zap,
   type LucideProps,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -40,6 +43,14 @@ const navGroups: { label: string; items: NavEntry[] }[] = [
     items: [
       { href: "/chat", label: "Saruna", icon: MessageSquare },
       { href: "/practice", label: "Uzdevumu ģenerators", icon: Target },
+    ],
+  },
+  {
+    label: "Mūzikas treniņi",
+    items: [
+      { href: "/quiz", label: "Zibens-viktorīna", icon: Zap },
+      { href: "/flashcards", label: "Mūzikas kartītes", icon: Layers },
+      { href: "/learning-path", label: "Mācību ceļvedis", icon: Map },
     ],
   },
   {

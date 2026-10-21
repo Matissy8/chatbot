@@ -1,5 +1,5 @@
-import { memo } from "react";
-import { Bot, User } from "lucide-react";
+import { memo, useEffect, useState } from "react";
+import { Bot, Volume2, User } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import type { ChatMessage as ChatMessageData } from "@/lib/demo-data";
 import { useAppSession } from "@/components/providers/app-provider";
 import { translate } from "@/lib/i18n";
+import { findNoteSequences, playNoteSequence } from "@/lib/music-audio";
 
 interface ChatMessageProps {
   message: ChatMessageData;
@@ -18,6 +19,7 @@ export const ChatMessage = memo(function ChatMessage({ message }: ChatMessagePro
   const { language } = useAppSession();
   const citations = isUser ? [] : [...message.content.matchAll(/\[Avots:\s*([^\]\r\n]+)\]/gi)].map(([citation]) => citation);
   const messageText = isUser ? message.content : message.content.replace(/\[Avots:\s*[^\]\r\n]+\]/gi, "").trim();
+  const noteSequences = isUser ? [] : findNoteSequences(messageText);
 
   return (
     <div className={cn("mx-auto flex w-full max-w-[768px] gap-3", isUser ? "justify-end" : "justify-start")}>
@@ -91,6 +93,13 @@ export const ChatMessage = memo(function ChatMessage({ message }: ChatMessagePro
                   ))}
                 </div>
               )}
+              {noteSequences.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {noteSequences.map((sequence) => (
+                    <AudioSequenceButton key={sequence} sequence={sequence} language={language} />
+                  ))}
+                </div>
+              )}
             </>
           )}
         </div>
@@ -104,3 +113,40 @@ export const ChatMessage = memo(function ChatMessage({ message }: ChatMessagePro
     </div>
   );
 });
+
+function AudioSequenceButton({ sequence, language }: { sequence: string; language: "lv" | "en" | "ru" }) {
+  const [playing, setPlaying] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!playing) return;
+    const timeout = window.setTimeout(() => setPlaying(false), 1200);
+    return () => window.clearTimeout(timeout);
+  }, [playing]);
+
+  async function play() {
+    setError("");
+    try {
+      await playNoteSequence(sequence);
+      setPlaying(true);
+    } catch (cause) {
+      console.error("Unable to play the note sequence:", cause);
+      setError(translate(language, "Audio atskaņošana šajā pārlūkā nav pieejama."));
+    }
+  }
+
+  return (
+    <span className="inline-flex flex-col items-start gap-1">
+      <button
+        type="button"
+        onClick={() => void play()}
+        aria-label={`${translate(language, "Atskaņot notis")}: ${sequence}`}
+        className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-2.5 py-1.5 text-xs font-medium text-indigo-700 transition-colors hover:bg-indigo-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:text-indigo-200"
+      >
+        <Volume2 className="h-3.5 w-3.5" />
+        {playing ? translate(language, "Atskaņo…") : `${translate(language, "Atskaņot")}: ${sequence}`}
+      </button>
+      {error && <span className="text-xs text-destructive" role="alert">{error}</span>}
+    </span>
+  );
+}

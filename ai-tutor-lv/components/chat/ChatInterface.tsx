@@ -1,10 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
 import {
   BookOpen,
   Camera,
+  Layers,
+  Map,
   Mic,
   Music2,
   Plus,
@@ -12,6 +15,7 @@ import {
   Sigma,
   Sparkles,
   X,
+  Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -36,16 +40,18 @@ const subjects = ["Harmonija", "Solfedžo", "Matemātika", "Fizika", "Mūzikas l
 export function ChatInterface({
   chatId: initialChatId,
   initialMessages = [],
+  initialPrompt,
 }: {
   chatId?: string;
   initialMessages?: ChatMessageData[];
+  initialPrompt?: string;
 }) {
   const router = useRouter();
   const { refreshSession, language } = useAppSession();
   const tr = (text: string) => translate(language, text);
   const [chatId, setChatId] = useState(initialChatId);
   const [messages, setMessages] = useState<ChatMessageData[]>(initialMessages);
-  const [input, setInput] = useState("");
+  const [input, setInput] = useState(initialPrompt ?? "");
   const [loading, setLoading] = useState(false);
   const [imageAttached, setImageAttached] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -186,6 +192,28 @@ export function ChatInterface({
                   <p className="mt-1.5 text-xs text-muted-foreground">{tr(subject)}</p>
                 </button>
               ))}
+            </div>
+
+            <div className="mt-6 w-full">
+              <h3 className="mb-3 text-left text-sm font-semibold">{tr("Treniņi un atkārtošana")}</h3>
+              <div className="grid gap-3 text-left sm:grid-cols-3">
+                {[
+                  { href: "/quiz", icon: Zap, title: "Sāc zibens-viktorīnu", description: "Pieci īsi jautājumi" },
+                  { href: "/flashcards", icon: Layers, title: "Mūzikas kartītes", description: "Atkārto terminus un akordus" },
+                  { href: "/learning-path", icon: Map, title: "Mācību ceļvedis", description: "Turpini pa līmeņiem" },
+                ].map(({ href, icon: Icon, title, description }) => (
+                  <Link
+                    key={href}
+                    href={href}
+                    className="rounded-xl border border-border bg-card p-3 transition-colors hover:border-primary/50 hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <div className="flex items-center gap-2 text-sm font-medium">
+                      <Icon className="h-4 w-4 text-primary" /> {tr(title)}
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">{tr(description)}</p>
+                  </Link>
+                ))}
+              </div>
             </div>
 
             <div className="mt-5 flex flex-wrap justify-center gap-2">
