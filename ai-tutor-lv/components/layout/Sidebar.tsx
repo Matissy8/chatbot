@@ -29,9 +29,9 @@ import { useAppSession } from "@/components/providers/app-provider";
 import { Progress } from "@/components/ui/progress";
 import { calculateLevel } from "@/lib/gamification";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { translate, type Language } from "@/lib/i18n";
 
 type ThemeMode = "light" | "dark" | "contrast";
-type Language = "LV" | "EN" | "RU";
 type NavEntry = { href: string; label: string; icon: ComponentType<LucideProps> };
 
 const navGroups: { label: string; items: NavEntry[] }[] = [
@@ -54,7 +54,7 @@ const navGroups: { label: string; items: NavEntry[] }[] = [
     label: "Rīki un konts",
     items: [
       { href: "/teacher-tools", label: "Skolotāja režīms", icon: GraduationCap },
-      { href: "/assistant-screen", label: "Ekrāna un foto palīgs", icon: Laptop },
+      { href: "/assistant-screen", label: "Metodisko materiālu bāze", icon: Laptop },
       { href: "/profile", label: "Profils", icon: UserRound },
       { href: "/pricing", label: "Plāni", icon: Crown },
       { href: "/settings", label: "Iestatījumi", icon: Settings },
@@ -77,11 +77,12 @@ function applyTheme(theme: ThemeMode) {
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { session } = useAppSession();
+  const { session, language, changeLanguage } = useAppSession();
   const isGuest = Boolean(session?.isGuest);
   const [userChats, setUserChats] = useState<{ id: string; title: string }[]>([]);
   const [theme, setTheme] = useState<ThemeMode>("light");
-  const [language, setLanguage] = useState<Language>("LV");
+  const [languageError, setLanguageError] = useState("");
+  const tr = (text: string) => translate(language, text);
   const xp = session?.xp ?? 0;
   const level = calculateLevel(xp);
   const progress = (level.currentLevelXp / level.nextLevelXp) * 100;
@@ -124,17 +125,21 @@ export function Sidebar() {
     applyTheme(next);
   }
 
-  function selectLanguage(next: Language) {
-    setLanguage(next);
-    document.documentElement.setAttribute("lang", next.toLowerCase());
-    window.localStorage.setItem("ai-tutor-language", next);
+  async function selectLanguage(next: Language) {
+    setLanguageError("");
+    try {
+      await changeLanguage(next);
+    } catch (error) {
+      console.error("Unable to save language preference:", error);
+      setLanguageError(tr("Neizdevās saglabāt valodas izvēli."));
+    }
   }
 
   return (
     <>
-      <nav aria-label="Galvenā navigācija" className="flex shrink-0 gap-1 overflow-x-auto border-b border-border bg-sidebar-background px-3 py-2 xl:hidden">
+      <nav aria-label={tr("Galvenā navigācija")} className="flex shrink-0 gap-1 overflow-x-auto border-b border-border bg-sidebar-background px-3 py-2 xl:hidden">
         {flattenedLinks.map((item) => (
-          <NavItem key={item.href} {...item} active={pathname === item.href} compact />
+          <NavItem key={item.href} {...item} label={tr(item.label)} active={pathname === item.href} compact />
         ))}
       </nav>
 
@@ -147,12 +152,12 @@ export function Sidebar() {
               </div>
               <div className="overflow-hidden">
                 <h1 className="text-base font-semibold leading-none tracking-tight text-foreground">Maestro</h1>
-                <p className="mt-1 truncate text-[11px] text-muted-foreground">Inteliģentais mācību asistents</p>
+                <p className="mt-1 truncate text-[11px] text-muted-foreground">{tr("Virtuālais skolotājs")}</p>
               </div>
             </Link>
           </div>
 
-          <nav aria-label="Galvenā navigācija" className="flex-1 space-y-6 overflow-y-auto px-3 py-2">
+          <nav aria-label={tr("Galvenā navigācija")} className="flex-1 space-y-6 overflow-y-auto px-3 py-2">
             <div className="space-y-1">
               <Link
                 href="/chat"
@@ -160,10 +165,10 @@ export function Sidebar() {
                 className="mb-2 flex items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-[13px] font-medium text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <Plus className="h-4 w-4" />
-                Jauna saruna
+                {tr("Jauna saruna")}
               </Link>
               <p className="px-3 pt-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                Pēdējās sarunas
+                {tr("Pēdējās sarunas")}
               </p>
               {userChats.length > 0 ? userChats.map((chat) => (
                 <NavItem
@@ -175,17 +180,17 @@ export function Sidebar() {
                   title={chat.title}
                 />
               )) : (
-                <p className="px-3 py-2 text-xs text-muted-foreground">Sarunu vēl nav</p>
+                <p className="px-3 py-2 text-xs text-muted-foreground">{tr("Sarunu vēl nav")}</p>
               )}
             </div>
 
             {navGroups.slice(1).map((group) => (
               <div key={group.label} className="space-y-1">
                 <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                  {group.label}
+                  {tr(group.label)}
                 </p>
                 {group.items.map((item) => (
-                  <NavItem key={item.href} {...item} active={pathname === item.href} />
+                  <NavItem key={item.href} {...item} label={tr(item.label)} active={pathname === item.href} />
                 ))}
               </div>
             ))}
@@ -195,64 +200,65 @@ export function Sidebar() {
         <div className="space-y-3 border-t border-border bg-background/50 p-3">
           <div className="rounded-lg border border-border bg-card p-3">
             <div className="mb-2 flex items-center justify-between text-xs">
-              <span className="font-semibold">Līmenis {level.level}</span>
+              <span className="font-semibold">{tr("Līmenis")} {level.level}</span>
               <span className="tabular-nums text-muted-foreground">{xp.toLocaleString("lv-LV")} XP</span>
             </div>
             <Progress value={progress} className="h-1.5" />
             <p className="mt-1.5 text-right text-[10px] text-muted-foreground">
-              {level.currentLevelXp} / {level.nextLevelXp} līdz nākamajam līmenim
+              {level.currentLevelXp} / {level.nextLevelXp} {tr("līdz nākamajam līmenim")}
             </p>
           </div>
 
           <div className="flex items-center justify-between px-2 text-xs">
             <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-              <Sun className="h-3.5 w-3.5" /> Tēma
+              <Sun className="h-3.5 w-3.5" /> {tr("Tēma")}
             </span>
             <button
               type="button"
               onClick={cycleTheme}
-              aria-label={`Mainīt tēmu. Pašreizējā: ${themeLabels[theme]}`}
+              aria-label={`${tr("Mainīt tēmu. Pašreizējā:")} ${tr(themeLabels[theme])}`}
               className="flex items-center gap-1 rounded-md p-1.5 text-[11px] font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               {theme === "light" && <Sun className="h-3.5 w-3.5" />}
               {theme === "dark" && <Moon className="h-3.5 w-3.5" />}
               {theme === "contrast" && <Contrast className="h-3.5 w-3.5" />}
-              {themeLabels[theme]}
+              {tr(themeLabels[theme])}
             </button>
           </div>
 
           <div className="flex items-center justify-between px-2 text-xs">
             <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-              <Languages className="h-3.5 w-3.5" /> Valoda
+              <Languages className="h-3.5 w-3.5" /> {tr("Valoda")}
             </span>
-            <div className="flex gap-0.5 font-mono text-[10px]" aria-label="Valodas izvēle">
-              {(["LV", "EN", "RU"] as const).map((value) => (
+            <div className="flex gap-0.5 font-mono text-[10px]" aria-label={tr("Valodas izvēle")}>
+              {(["lv", "en", "ru"] as const).map((value) => (
                 <button
                   key={value}
                   type="button"
-                  onClick={() => selectLanguage(value)}
+                  onClick={() => void selectLanguage(value)}
                   aria-pressed={language === value}
                   className={cn(
                     "rounded px-1.5 py-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                     language === value ? "bg-primary font-bold text-primary-foreground" : "text-muted-foreground hover:bg-muted"
                   )}
                 >
-                  {value}
+                  {value.toUpperCase()}
                 </button>
               ))}
             </div>
           </div>
+          {languageError && <p className="px-2 text-xs text-destructive" role="alert">{languageError}</p>}
 
           <div className="flex items-center justify-between border-t border-border pt-2">
             <Link href="/profile" className="min-w-0 rounded-md px-2 py-1 outline-none focus-visible:ring-2 focus-visible:ring-ring">
-              <p className="truncate text-[13px] font-medium leading-tight">{session?.displayName ?? "Māceklis"}</p>
+              <p className="truncate text-[13px] font-medium leading-tight">{session?.displayName ?? tr("Māceklis")}</p>
               <p className="truncate text-[11px] text-muted-foreground">{session?.email ?? ""}</p>
             </Link>
             <form action={signout}>
               <button
                 type="submit"
-                aria-label="Iziet no konta"
-                title="Iziet"
+                aria-label={tr("Iziet no konta")}
+                title={tr("Iziet")}
                 className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <LogOut className="h-4 w-4" />

@@ -8,13 +8,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useAppSession } from "@/components/providers/app-provider";
 import { fetchJson } from "@/lib/fetch-json";
 import { guestPracticeQuestions, practiceDifficulties, practiceSubjects, type PracticeDifficulty, type PracticeSubject, type PublicPracticeQuestion } from "@/lib/practice-data";
+import { translate } from "@/lib/i18n";
 
 type CheckedAnswer = { selectedOption: number; correct: boolean; explanation: string };
 type QuizStartResult = { attemptId: string; questions: PublicPracticeQuestion[] };
 type CompletionResult = { awarded: boolean; score: number; total: number; xpAwarded: number; totalXp: number };
 
 export default function PracticePage() {
-  const { refreshSession, session } = useAppSession();
+  const { refreshSession, session, language } = useAppSession();
+  const tr = (text: string) => translate(language, text);
   const [subject, setSubject] = useState<PracticeSubject>("harmony");
   const [difficulty, setDifficulty] = useState<PracticeDifficulty>("medium");
   const [attemptId, setAttemptId] = useState("");
@@ -56,7 +58,7 @@ export default function PracticePage() {
       setAttemptId(data.attemptId);
       setQuestions(data.questions);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Neizdevās sākt treniņu.");
+      setError(tr(cause instanceof Error ? cause.message : "Neizdevās sākt treniņu."));
     } finally {
       setIsStarting(false);
     }
@@ -94,7 +96,7 @@ export default function PracticePage() {
         },
       }));
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Neizdevās pārbaudīt atbildi.");
+      setError(tr(cause instanceof Error ? cause.message : "Neizdevās pārbaudīt atbildi."));
     } finally {
       setIsChecking(false);
     }
@@ -127,7 +129,7 @@ export default function PracticePage() {
       setCompleted(true);
       void refreshSession().catch(() => undefined);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Neizdevās saglabāt rezultātu.");
+      setError(tr(cause instanceof Error ? cause.message : "Neizdevās saglabāt rezultātu."));
     } finally {
       setIsCompleting(false);
     }
@@ -151,42 +153,42 @@ export default function PracticePage() {
   return (
     <div className="mx-auto w-full max-w-4xl space-y-6 p-4 sm:p-6">
       <header>
-        <p className="text-sm font-medium text-muted-foreground">Interaktīvs treniņš</p>
-        <h1 className="mt-1 text-3xl font-bold tracking-tight">Uzdevumu ģenerators</h1>
-        <p className="mt-2 max-w-2xl text-sm text-muted-foreground">Izvēlies priekšmetu un grūtību. Atbildes pārbaudīsies uzreiz, bet par pabeigtu viktorīnu reģistrētam lietotājam pienākas +50 XP.</p>
+        <p className="text-sm font-medium text-muted-foreground">{tr("Interaktīvs treniņš")}</p>
+        <h1 className="mt-1 text-3xl font-bold tracking-tight">{tr("Uzdevumu ģenerators")}</h1>
+        <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{tr("Izvēlies priekšmetu un grūtību. Atbildes pārbaudīsies uzreiz, bet par pabeigtu viktorīnu reģistrētam lietotājam pienākas +50 XP.")}</p>
       </header>
 
       {questions.length === 0 && !completed && (
         <Card className="border-border shadow-sm">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg"><Target className="h-5 w-5" /> Treniņa parametri</CardTitle>
-            <CardDescription>Jautājumi tiek izvēlēti no mācību uzdevumu bankas.</CardDescription>
+            <CardTitle className="flex items-center gap-2 text-lg"><Target className="h-5 w-5" /> {tr("Treniņa parametri")}</CardTitle>
+            <CardDescription>{tr("Jautājumi tiek izvēlēti no mācību uzdevumu bankas.")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <label htmlFor="practice-subject" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Mācību priekšmets</label>
+                <label htmlFor="practice-subject" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{tr("Mācību priekšmets")}</label>
                 <Select value={subject} onValueChange={(value) => {
                   if (typeof value === "string" && practiceSubjects.some((item) => item.value === value)) setSubject(value as PracticeSubject);
                 }}>
                   <SelectTrigger id="practice-subject" className="h-10 w-full"><SelectValue /></SelectTrigger>
-                  <SelectContent>{practiceSubjects.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}</SelectContent>
+                  <SelectContent>{practiceSubjects.map((item) => <SelectItem key={item.value} value={item.value}>{tr(item.label)}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <label htmlFor="practice-difficulty" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Grūtības līmenis</label>
+                <label htmlFor="practice-difficulty" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{tr("Grūtības līmenis")}</label>
                 <Select value={difficulty} onValueChange={(value) => {
                   if (typeof value === "string" && practiceDifficulties.some((item) => item.value === value)) setDifficulty(value as PracticeDifficulty);
                 }}>
                   <SelectTrigger id="practice-difficulty" className="h-10 w-full"><SelectValue /></SelectTrigger>
-                  <SelectContent>{practiceDifficulties.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}</SelectContent>
+                  <SelectContent>{practiceDifficulties.map((item) => <SelectItem key={item.value} value={item.value}>{tr(item.label)}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
             </div>
             {error && <p className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive" role="alert">{error}</p>}
             <Button onClick={() => void startQuiz()} disabled={isStarting} className="h-10 w-full gap-2">
               {isStarting ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-              {isStarting ? "Sagatavo jautājumus…" : session?.isGuest ? "Sākt demo treniņu" : "Sākt treniņu · +50 XP"}
+              {tr(isStarting ? "Sagatavo jautājumus…" : session?.isGuest ? "Sākt demo treniņu" : "Sākt treniņu · +50 XP")}
             </Button>
           </CardContent>
         </Card>
@@ -195,8 +197,8 @@ export default function PracticePage() {
       {question && !completed && (
         <div className="space-y-4">
           <div className="flex items-center justify-between text-sm text-muted-foreground">
-            <span>Jautājums {currentQuestion + 1} no {questions.length}</span>
-            <span>Pareizi: {Object.values(answers).filter((answer) => answer.correct).length}</span>
+            <span>{tr("Jautājums")} {currentQuestion + 1} {tr("no")} {questions.length}</span>
+            <span>{tr("Pareizi:")} {Object.values(answers).filter((answer) => answer.correct).length}</span>
           </div>
           <div className="h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full bg-primary transition-all" style={{ width: `${(answeredCount / questions.length) * 100}%` }} /></div>
           <Card className="border-border">
@@ -221,13 +223,13 @@ export default function PracticePage() {
                 <div className="space-y-3 rounded-xl border border-border bg-muted/40 p-4" aria-live="polite">
                   <p className="flex items-center gap-2 text-sm font-semibold">
                     {answers[question.id].correct ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
-                    {answers[question.id].correct ? "Pareizi!" : "Šoreiz nepareizi"}
+                    {tr(answers[question.id].correct ? "Pareizi!" : "Šoreiz nepareizi")}
                   </p>
                   <p className="text-sm leading-relaxed text-muted-foreground">{answers[question.id].explanation}</p>
                   {error && <p className="text-sm text-destructive" role="alert">{error}</p>}
                   <Button onClick={nextQuestion} disabled={isCompleting} className="w-full gap-2">
                     {isCompleting ? <LoaderCircle className="h-4 w-4 animate-spin" /> : null}
-                    {currentQuestion + 1 < questions.length ? "Nākamais jautājums" : "Pabeigt treniņu"}
+                    {tr(currentQuestion + 1 < questions.length ? "Nākamais jautājums" : "Pabeigt treniņu")}
                     {!isCompleting && <ArrowRight className="h-4 w-4" />}
                   </Button>
                 </div>
@@ -242,10 +244,10 @@ export default function PracticePage() {
         <Card className="border-border py-8 text-center">
           <CardContent className="space-y-4">
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-primary text-primary-foreground"><Trophy className="h-8 w-8" /></div>
-            <h2 className="text-2xl font-bold">Treniņš pabeigts!</h2>
-            <p className="text-sm text-muted-foreground">Rezultāts: {result.score} no {result.total} pareizi.</p>
-            <div className="mx-auto flex w-fit items-center gap-2 rounded-xl bg-muted px-4 py-3 text-sm font-semibold"><Sparkles className="h-4 w-4" />{session?.isGuest ? "Viesu demo — rezultāts un XP netiek saglabāti" : result.awarded ? "+50 XP pievienoti profilam" : "Šis mēģinājums jau bija ieskaitīts"}</div>
-            <Button onClick={resetQuiz} variant="outline" className="gap-2"><RotateCcw className="h-4 w-4" /> Jauns treniņš</Button>
+            <h2 className="text-2xl font-bold">{tr("Treniņš pabeigts!")}</h2>
+            <p className="text-sm text-muted-foreground">{tr("Rezultāts:")} {result.score} {tr("no")} {result.total} {tr("pareizi.")}</p>
+            <div className="mx-auto flex w-fit items-center gap-2 rounded-xl bg-muted px-4 py-3 text-sm font-semibold"><Sparkles className="h-4 w-4" />{tr(session?.isGuest ? "Viesu demo — rezultāts un XP netiek saglabāti" : result.awarded ? "+50 XP pievienoti profilam" : "Šis mēģinājums jau bija ieskaitīts")}</div>
+            <Button onClick={resetQuiz} variant="outline" className="gap-2"><RotateCcw className="h-4 w-4" /> {tr("Jauns treniņš")}</Button>
           </CardContent>
         </Card>
       )}

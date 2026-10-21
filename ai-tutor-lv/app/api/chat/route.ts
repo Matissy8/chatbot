@@ -16,6 +16,7 @@ import { awardXP } from "@/lib/xp";
 import { apiErrorResponse } from "@/lib/api-error";
 import { consumeChatCredit } from "@/lib/credits";
 import { DAILY_LIMIT_CODE } from "@/lib/plans";
+import type { TutorLanguage } from "@/lib/ai-provider";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -63,7 +64,7 @@ function createReplyStream({
 }: {
   messages: IncomingMessage[];
   system: string;
-  language: "lv" | "en";
+  language: TutorLanguage;
   useProvider: boolean;
   cacheKey?: string;
   signal: AbortSignal;
@@ -234,10 +235,13 @@ async function handlePost(request: Request) {
     profile = profileResult.data;
   }
 
-  const language = profile?.language === "en" ? "en" : "lv";
+  const language: TutorLanguage = profile?.language === "en" || profile?.language === "ru" ? profile.language : "lv";
+  const responseLanguage = language === "lv" ? "Latvian" : language === "ru" ? "Russian" : "English";
+  const sourceInstructions = "When answering questions or analyzing uploaded materials, you MUST provide a precise citation to the source file, book, or chapter in the format [Avots: Faila nosaukums / lpp.]. Never invent citations. Cite only sources actually provided in the conversation; if no source or page is available, say so instead of fabricating one.";
   const system = [
-    `Tu esi atbalstošs un akadēmiski precīzs Maestro mācību asistents Latvijas skolēniem. Atbildi ${language === "en" ? "English" : "Latvian"} valodā.`,
+    `Tu esi atbalstošs un akadēmiski precīzs Maestro mācību asistents Latvijas skolēniem. Atbildi ${responseLanguage} valodā.`,
     `Lietotāja mācību loma: ${profile?.role ?? "independent"}; klase: ${profile?.grade_level ?? "nav norādīta"}. Tēma: ${subject}.`,
+    sourceInstructions,
     "Palīdzi ar skolas mācību priekšmetiem un mūziku (harmonija, solfedžo, mūzikas literatūra). Ņem vērā visu iepriekšējo sarunu, atbildi tieši uz pēdējo jautājumu un neatkārto iepriekšējās atbildes. Ja neesi pārliecināts, pasaki to godīgi un sniedz to, ko zini droši.",
     "Esi kodolīgs; izmanto Markdown un KaTeX formulas, ja tas palīdz, un paskaidro risinājuma gaitu.",
   ].join(" ");

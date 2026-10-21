@@ -6,6 +6,8 @@ import { Zap } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { FREE_DAILY_QUESTION_LIMIT } from "@/lib/plans";
+import { useAppSession } from "@/components/providers/app-provider";
+import { translate } from "@/lib/i18n";
 
 export function LimitReachedModal({
   open,
@@ -16,6 +18,9 @@ export function LimitReachedModal({
   onOpenChange: (open: boolean) => void;
   limit?: number;
 }) {
+  const { language } = useAppSession();
+  const tr = (text: string) => translate(language, text);
+
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
@@ -24,17 +29,16 @@ export function LimitReachedModal({
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
             <Zap className="h-6 w-6" aria-hidden="true" />
           </div>
-          <Dialog.Title className="text-xl font-semibold tracking-tight">Šodienas limits sasniegts</Dialog.Title>
+          <Dialog.Title className="text-xl font-semibold tracking-tight">{tr("Šodienas limits sasniegts")}</Dialog.Title>
           <Dialog.Description className="mt-2 text-sm text-muted-foreground">
-            Esi izmantojis visus <strong className="font-semibold text-foreground">{limit} bezmaksas jautājumus</strong> šodien. Limits atjaunosies
-            rīt, vai arī izvēlies Maestro PRO un turpini bez ierobežojumiem.
+            {tr("Esi izmantojis visus")} <strong className="font-semibold text-foreground">{limit} {tr("bezmaksas jautājumus")}</strong> {tr("šodien. Limits atjaunosies rīt, vai arī izvēlies Maestro PRO un turpini bez ierobežojumiem.")}
           </Dialog.Description>
           <div className="mt-6 flex flex-col gap-2">
             <Link href="/pricing" className={cn(buttonVariants({ size: "lg" }), "h-10 w-full justify-center")}>
-              Skatīt Maestro PRO
+              {tr("Skatīt Maestro PRO")}
             </Link>
             <Dialog.Close className={cn(buttonVariants({ variant: "ghost", size: "lg" }), "h-10 w-full justify-center text-muted-foreground")}>
-              Saprasts
+              {tr("Saprasts")}
             </Dialog.Close>
           </div>
         </Dialog.Popup>

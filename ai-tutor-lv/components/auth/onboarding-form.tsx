@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useAppSession } from "@/components/providers/app-provider";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { translate, type Language } from "@/lib/i18n";
 
 const userTypes = ["school_student", "music_student", "music_high_school", "teacher", "independent"] as const;
 type UserType = (typeof userTypes)[number];
@@ -24,14 +25,16 @@ const roleOptions: { value: UserType; label: string }[] = [
 
 export function OnboardingForm() {
   const router = useRouter();
-  const { session, refreshSession } = useAppSession();
+  const { session, language: interfaceLanguage, refreshSession } = useAppSession();
   const [role, setRole] = useState<UserType>("independent");
   const [grade, setGrade] = useState("");
   const [displayName, setDisplayName] = useState("");
-  const [language, setLanguage] = useState<"lv" | "en">("lv");
+  const [selectedLanguage, setSelectedLanguage] = useState<Language | null>(null);
+  const language = selectedLanguage ?? session?.language ?? "lv";
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const needsGrade = role === "school_student" || role === "music_student";
+  const tr = (text: string) => translate(interfaceLanguage, text);
 
   async function handleComplete() {
     setError("");
@@ -52,9 +55,14 @@ export function OnboardingForm() {
         router.replace("/login");
         return;
       }
+      if (!user.email) {
+        setError("Neizdevās noteikt konta e-pasta adresi. Izraksties un pieslēdzies vēlreiz.");
+        return;
+      }
 
       const { error: profileError } = await supabase.from("profiles").upsert({
         id: user.id,
+        email: user.email,
         role,
         grade_level: needsGrade ? Number(grade) : null,
         display_name: displayName.trim() || session?.displayName || user.email?.split("@")[0] || "Skolēns",
@@ -63,7 +71,16 @@ export function OnboardingForm() {
       }, { onConflict: "id" });
 
       if (profileError) {
-        setError("Profila saglabāšana neizdevās. Pārliecinies, ka Supabase datubāzē ir izpildīts schema.sql.");
+        console.error("Profile save failed:", profileError);
+        if (profileError.code === "42703") {
+          setError("Supabase datubāzes shēma ir novecojusi. Supabase SQL Editor palaid supabase/schema_full.sql, pēc tam mēģini vēlreiz.");
+        } else if (profileError.code === "23502") {
+          setError("Profila saglabāšanai trūkst obligātu datubāzes lauku. Supabase SQL Editor palaid supabase/schema_full.sql, pēc tam mēģini vēlreiz.");
+        } else if (profileError.code === "42501") {
+          setError("Supabase datubāzei trūkst profila saglabāšanas atļauju. Supabase SQL Editor palaid supabase/schema_full.sql, pēc tam mēģini vēlreiz.");
+        } else {
+          setError("Profila saglabāšana neizdevās. Pārliecinies, ka Supabase datubāzē ir izpildīts supabase/schema_full.sql.");
+        }
         return;
       }
 
@@ -81,25 +98,25 @@ export function OnboardingForm() {
   return (
     <Card className="w-full max-w-xl border-border bg-card shadow-xl shadow-foreground/5">
       <CardHeader>
-        <p className="text-sm font-medium text-muted-foreground">Pirmais solis</p>
-        <CardTitle className="text-2xl font-bold text-foreground">Iepazīsimies!</CardTitle>
-        <CardDescription>Palīdzi AI pielāgot paskaidrojumus tavam mācību līmenim.</CardDescription>
+        <p className="text-sm font-medium text-muted-foreground">{tr("Pirmais solis")}</p>
+        <CardTitle className="text-2xl font-bold text-foreground">{tr("Iepazīsimies!")}</CardTitle>
+        <CardDescription>{tr("Palīdzi AI pielāgot paskaidrojumus tavam mācību līmenim.")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
         <div className="space-y-2">
-          <Label htmlFor="display-name">Vārds vai segvārds</Label>
+          <Label htmlFor="display-name">{tr("Vārds vai segvārds")}</Label>
           <Input
             id="display-name"
-            autoComplete="nickname"
+            autoComplete="name"
             maxLength={80}
-            placeholder="Piemēram, Anna"
+            placeholder={tr("Piemēram, Anna")}
             value={displayName}
             onChange={(event) => setDisplayName(event.target.value)}
           />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="role">Kā tu izmantosi platformu?</Label>
+          <Label htmlFor="role">{tr("Kā tu izmantosi platformu?")}</Label>
           <Select value={role} onValueChange={(value) => {
             if (typeof value === "string" && userTypes.includes(value as UserType)) {
               setRole(value as UserType);
@@ -107,11 +124,11 @@ export function OnboardingForm() {
             }
           }}>
             <SelectTrigger id="role" className="w-full bg-background">
-              <SelectValue placeholder="Izvēlies savu lomu" />
+              <SelectValue placeholder={tr("Izvēlies savu lomu")} />
             </SelectTrigger>
             <SelectContent>
               {roleOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                <SelectItem key={option.value} value={option.value}>{tr(option.label)}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -119,14 +136,14 @@ export function OnboardingForm() {
 
         {needsGrade && (
           <div className="space-y-2">
-            <Label htmlFor="grade">Kurā klasē tu mācies?</Label>
+            <Label htmlFor="grade">{tr("Kurā klasē tu mācies?")}</Label>
             <Select value={grade} onValueChange={(value) => setGrade(typeof value === "string" ? value : "")}>
               <SelectTrigger id="grade" className="w-full bg-background">
-                <SelectValue placeholder="Izvēlies klasi" />
+                <SelectValue placeholder={tr("Izvēlies klasi")} />
               </SelectTrigger>
               <SelectContent>
                 {Array.from({ length: 12 }, (_, index) => String(index + 1)).map((value) => (
-                  <SelectItem key={value} value={value}>{value}. klase</SelectItem>
+                  <SelectItem key={value} value={value}>{value}. {tr("klase")}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -134,24 +151,25 @@ export function OnboardingForm() {
         )}
 
         <div className="space-y-2">
-          <Label htmlFor="language">Atbilžu valoda</Label>
+          <Label htmlFor="language">{tr("Atbilžu valoda")}</Label>
           <Select value={language} onValueChange={(value) => {
-            if (value === "lv" || value === "en") setLanguage(value);
+            if (value === "lv" || value === "en" || value === "ru") setSelectedLanguage(value);
           }}>
             <SelectTrigger id="language" className="w-full bg-background">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="lv">Latviešu</SelectItem>
-              <SelectItem value="en">English</SelectItem>
+              <SelectItem value="lv">{tr("Latviešu")}</SelectItem>
+              <SelectItem value="en">{tr("English")}</SelectItem>
+              <SelectItem value="ru">{tr("Русский")}</SelectItem>
             </SelectContent>
           </Select>
         </div>
 
-        {error && <p className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive" role="alert">{error}</p>}
+        {error && <p className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive" role="alert">{tr(error)}</p>}
 
         <Button onClick={handleComplete} disabled={loading} className="w-full">
-          {loading ? "Saglabā iestatījumus…" : "Sākt mācīties"}
+          {loading ? tr("Saglabā iestatījumus…") : tr("Sākt mācīties")}
         </Button>
       </CardContent>
     </Card>

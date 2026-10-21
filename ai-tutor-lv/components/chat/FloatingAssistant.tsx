@@ -10,13 +10,19 @@ import { LimitReachedModal } from "@/components/chat/LimitReachedModal";
 import type { ChatMessage as ChatMessageData } from "@/lib/demo-data";
 import { streamChatReply } from "@/lib/chat-client";
 import { isAbort, isLimitReached } from "@/lib/fetch-json";
+import { useAppSession } from "@/components/providers/app-provider";
+import { translate } from "@/lib/i18n";
+
+const greeting = "Sveiki! Kā varu palīdzēt tieši tagad?";
 
 export function FloatingAssistant() {
+  const { language } = useAppSession();
+  const tr = (text: string) => translate(language, text);
   const [isOpen, setIsOpen] = useState(false);
   const [isCompact, setIsCompact] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [messages, setMessages] = useState<ChatMessageData[]>([
-    { role: "assistant", content: "Sveiki! Kā varu palīdzēt tieši tagad?" },
+    { role: "assistant", content: greeting },
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -64,7 +70,7 @@ export function FloatingAssistant() {
       }
       setMessages([
         ...nextMessages,
-        { role: "assistant", content: error instanceof Error && error.message ? error.message : "Neizdevās sazināties ar asistentu." },
+        { role: "assistant", content: tr(error instanceof Error && error.message ? error.message : "Neizdevās sazināties ar asistentu.") },
       ]);
     } finally {
       busyRef.current = false;
@@ -80,14 +86,14 @@ export function FloatingAssistant() {
         <Button
           type="button"
           onClick={() => setIsOpen(true)}
-          aria-label="Atvērt ātro asistentu"
+          aria-label={tr("Atvērt ātro asistentu")}
           className="h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-xl transition-transform hover:scale-105 hover:bg-primary/85"
         >
           <Bot className="h-6 w-6 stroke-[1.75]" />
         </Button>
       ) : (
         <section
-          aria-label="Ātrais mācību asistents"
+          aria-label={tr("Ātrais mācību asistents")}
           className={cn(
             "flex max-h-[min(480px,calc(100vh-2rem))] w-[min(384px,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-2xl",
             isCompact ? "h-[352px]" : "h-[480px]"
@@ -99,15 +105,15 @@ export function FloatingAssistant() {
                 <Bot className="h-4 w-4" />
               </div>
               <div>
-                <p className="text-[13px] font-semibold leading-none">Ātrais palīgs</p>
-                <p className="mt-1 text-[11px] text-muted-foreground">Mācību atbalsts vienmēr pa rokai</p>
+                <p className="text-[13px] font-semibold leading-none">{tr("Ātrais palīgs")}</p>
+                <p className="mt-1 text-[11px] text-muted-foreground">{tr("Mācību atbalsts vienmēr pa rokai")}</p>
               </div>
             </div>
             <div className="flex items-center gap-1">
-              <Button type="button" variant="ghost" size="icon" aria-label="Vidžeta iestatījumi" onClick={() => setShowSettings((value) => !value)}>
+              <Button type="button" variant="ghost" size="icon" aria-label={tr("Vidžeta iestatījumi")} onClick={() => setShowSettings((value) => !value)}>
                 <Settings className="h-4 w-4" />
               </Button>
-              <Button type="button" variant="ghost" size="icon" aria-label="Aizvērt ātro asistentu" onClick={() => setIsOpen(false)}>
+              <Button type="button" variant="ghost" size="icon" aria-label={tr("Aizvērt ātro asistentu")} onClick={() => setIsOpen(false)}>
                 <X className="h-4 w-4" />
               </Button>
             </div>
@@ -115,30 +121,30 @@ export function FloatingAssistant() {
 
           {showSettings ? (
             <div className="flex flex-1 flex-col gap-4 p-4 text-sm">
-              <h2 className="font-semibold">Vidžeta iestatījumi</h2>
+              <h2 className="font-semibold">{tr("Vidžeta iestatījumi")}</h2>
               <label className="flex items-center justify-between gap-4 text-muted-foreground">
-                <span>Vienkāršots, kompakts izskats</span>
+                <span>{tr("Vienkāršots, kompakts izskats")}</span>
                 <input type="checkbox" checked={isCompact} onChange={(event) => setIsCompact(event.target.checked)} className="size-4 accent-foreground" />
               </label>
-              <Button type="button" onClick={() => setShowSettings(false)} className="mt-auto w-full">Gatavs</Button>
+              <Button type="button" onClick={() => setShowSettings(false)} className="mt-auto w-full">{tr("Gatavs")}</Button>
             </div>
           ) : (
             <>
               <div ref={messagesRef} className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3">
                 {messages.map((message, index) => (
-                  <ChatMessage key={`${message.role}-${index}`} message={message} />
+                  <ChatMessage key={`${message.role}-${index}`} message={index === 0 && message.content === greeting ? { ...message, content: tr(greeting) } : message} />
                 ))}
-                {loading && <div className="flex items-center gap-2 text-xs text-muted-foreground"><LoaderCircle className="h-3.5 w-3.5 animate-spin" /> Domāju…</div>}
+                {loading && <div className="flex items-center gap-2 text-xs text-muted-foreground"><LoaderCircle className="h-3.5 w-3.5 animate-spin" /> {tr("Domāju…")}</div>}
               </div>
               <form onSubmit={sendMessage} className="flex shrink-0 gap-2 border-t border-border p-2">
                 <Input
                   value={input}
                   onChange={(event) => setInput(event.target.value)}
-                  placeholder="Raksti ziņu…"
-                  aria-label="Ziņa ātrajam asistentam"
+                  placeholder={tr("Raksti ziņu…")}
+                  aria-label={tr("Ziņa ātrajam asistentam")}
                   className="h-10 min-w-0 flex-1 bg-background"
                 />
-                <Button type="submit" size="icon" aria-label="Nosūtīt ziņu" disabled={loading || !input.trim()} className="h-10 w-10">
+                <Button type="submit" size="icon" aria-label={tr("Nosūtīt ziņu")} disabled={loading || !input.trim()} className="h-10 w-10">
                   <Send className="h-4 w-4" />
                 </Button>
               </form>

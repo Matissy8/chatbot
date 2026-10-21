@@ -6,6 +6,8 @@ import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import { cn } from "@/lib/utils";
 import type { ChatMessage as ChatMessageData } from "@/lib/demo-data";
+import { useAppSession } from "@/components/providers/app-provider";
+import { translate } from "@/lib/i18n";
 
 interface ChatMessageProps {
   message: ChatMessageData;
@@ -13,6 +15,9 @@ interface ChatMessageProps {
 
 export const ChatMessage = memo(function ChatMessage({ message }: ChatMessageProps) {
   const isUser = message.role === "user";
+  const { language } = useAppSession();
+  const citations = isUser ? [] : [...message.content.matchAll(/\[Avots:\s*([^\]\r\n]+)\]/gi)].map(([citation]) => citation);
+  const messageText = isUser ? message.content : message.content.replace(/\[Avots:\s*[^\]\r\n]+\]/gi, "").trim();
 
   return (
     <div className={cn("mx-auto flex w-full max-w-[768px] gap-3", isUser ? "justify-end" : "justify-start")}>
@@ -32,48 +37,61 @@ export const ChatMessage = memo(function ChatMessage({ message }: ChatMessagePro
           )}
         >
           {isUser ? (
-            <div className="whitespace-pre-wrap leading-relaxed">{message.content}</div>
+            <div className="whitespace-pre-wrap leading-relaxed">{messageText}</div>
           ) : (
-            <ReactMarkdown
-              remarkPlugins={[remarkGfm, remarkMath]}
-              rehypePlugins={[rehypeKatex]}
-              components={{
-                p: ({ children }) => <p className="mb-2 leading-relaxed last:mb-0">{children}</p>,
-                ul: ({ children }) => <ul className="my-2 list-disc space-y-1 pl-5">{children}</ul>,
-                ol: ({ children }) => <ol className="my-2 list-decimal space-y-1 pl-5">{children}</ol>,
-                h1: ({ children }) => <h1 className="mb-2 mt-4 text-lg font-semibold first:mt-0">{children}</h1>,
-                h2: ({ children }) => <h2 className="mb-2 mt-4 text-base font-semibold first:mt-0">{children}</h2>,
-                blockquote: ({ children }) => <blockquote className="my-2 border-l-2 border-primary pl-3 text-muted-foreground">{children}</blockquote>,
-                code: ({ className, children, ...props }) => {
-                  const isBlock = Boolean(className?.includes("language-")) || String(children).includes("\n");
+            <>
+              {messageText && (
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm, remarkMath]}
+                  rehypePlugins={[rehypeKatex]}
+                  components={{
+                    p: ({ children }) => <p className="mb-2 leading-relaxed last:mb-0">{children}</p>,
+                    ul: ({ children }) => <ul className="my-2 list-disc space-y-1 pl-5">{children}</ul>,
+                    ol: ({ children }) => <ol className="my-2 list-decimal space-y-1 pl-5">{children}</ol>,
+                    h1: ({ children }) => <h1 className="mb-2 mt-4 text-lg font-semibold first:mt-0">{children}</h1>,
+                    h2: ({ children }) => <h2 className="mb-2 mt-4 text-base font-semibold first:mt-0">{children}</h2>,
+                    blockquote: ({ children }) => <blockquote className="my-2 border-l-2 border-primary pl-3 text-muted-foreground">{children}</blockquote>,
+                    code: ({ className, children, ...props }) => {
+                      const isBlock = Boolean(className?.includes("language-")) || String(children).includes("\n");
 
-                  return isBlock ? (
-                    <code className={cn("font-mono", className)} {...props}>{children}</code>
-                  ) : (
-                    <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-[0.85em]" {...props}>
-                      {children}
-                    </code>
-                  );
-                },
-                pre: ({ children }) => (
-                  <pre className="my-3 overflow-x-auto rounded-lg bg-primary p-4 text-xs leading-relaxed text-primary-foreground">
-                    {children}
-                  </pre>
-                ),
-                table: ({ children }) => (
-                  <div className="my-3 overflow-x-auto">
-                    <table className="w-full border-collapse text-left text-sm [&_td]:border [&_td]:border-border [&_td]:px-3 [&_td]:py-2 [&_th]:border [&_th]:border-border [&_th]:bg-muted [&_th]:px-3 [&_th]:py-2 [&_th]:font-semibold">{children}</table>
-                  </div>
-                ),
-                a: ({ children, href }) => (
-                  <a className="text-foreground underline underline-offset-2" href={href} target="_blank" rel="noreferrer">
-                    {children}
-                  </a>
-                ),
-              }}
-            >
-              {message.content}
-            </ReactMarkdown>
+                      return isBlock ? (
+                        <code className={cn("font-mono", className)} {...props}>{children}</code>
+                      ) : (
+                        <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-[0.85em]" {...props}>
+                          {children}
+                        </code>
+                      );
+                    },
+                    pre: ({ children }) => (
+                      <pre className="my-3 overflow-x-auto rounded-lg bg-primary p-4 text-xs leading-relaxed text-primary-foreground">
+                        {children}
+                      </pre>
+                    ),
+                    table: ({ children }) => (
+                      <div className="my-3 overflow-x-auto">
+                        <table className="w-full border-collapse text-left text-sm [&_td]:border [&_td]:border-border [&_td]:px-3 [&_td]:py-2 [&_th]:border [&_th]:border-border [&_th]:bg-muted [&_th]:px-3 [&_th]:py-2 [&_th]:font-semibold">{children}</table>
+                      </div>
+                    ),
+                    a: ({ children, href }) => (
+                      <a className="text-foreground underline underline-offset-2" href={href} target="_blank" rel="noreferrer">
+                        {children}
+                      </a>
+                    ),
+                  }}
+                >
+                  {messageText}
+                </ReactMarkdown>
+              )}
+              {citations.length > 0 && (
+                <div className="mt-2 space-y-1" aria-label={translate(language, "Avoti")}>
+                  {citations.map((citation, index) => (
+                    <p key={`${citation}-${index}`} className="border-l-4 border-indigo-500 bg-gray-50 p-2 text-xs text-gray-700 dark:bg-gray-900 dark:text-gray-200">
+                      {citation}
+                    </p>
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

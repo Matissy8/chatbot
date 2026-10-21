@@ -1,10 +1,11 @@
 create table if not exists public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
+  email text not null default '',
   display_name text not null default '',
   role text not null default 'independent'
     check (role in ('school_student', 'music_student', 'music_high_school', 'teacher', 'independent')),
   grade_level smallint check (grade_level between 1 and 12),
-  language text not null default 'lv' check (language in ('lv', 'en')),
+  language text not null default 'lv' check (language in ('lv', 'en', 'ru')),
   xp integer not null default 0 check (xp >= 0),
   streak integer not null default 0 check (streak >= 0),
   last_active_at timestamptz,
@@ -12,6 +13,13 @@ create table if not exists public.profiles (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.profiles add column if not exists email text not null default '';
+alter table public.profiles add column if not exists grade_level smallint check (grade_level between 1 and 12);
+alter table public.profiles add column if not exists last_active_at timestamptz;
+alter table public.profiles add column if not exists onboarding_completed_at timestamptz;
+alter table public.profiles drop constraint if exists profiles_language_check;
+alter table public.profiles add constraint profiles_language_check check (language in ('lv', 'en', 'ru'));
 
 alter table public.profiles enable row level security;
 
@@ -32,9 +40,9 @@ create policy "Users can update their own profile"
   with check ((select auth.uid()) = id);
 
 grant select on public.profiles to authenticated;
-grant insert (id, display_name, role, grade_level, language, onboarding_completed_at)
+grant insert (id, email, display_name, role, grade_level, language, onboarding_completed_at)
   on public.profiles to authenticated;
-grant update (display_name, role, grade_level, language, onboarding_completed_at, updated_at)
+grant update (email, display_name, role, grade_level, language, onboarding_completed_at, updated_at)
   on public.profiles to authenticated;
 
 create or replace function public.handle_new_user()
@@ -43,9 +51,10 @@ language plpgsql
 security definer set search_path = ''
 as $$
 begin
-  insert into public.profiles (id, display_name)
+  insert into public.profiles (id, email, display_name)
   values (
     new.id,
+    coalesce(new.email, ''),
     coalesce(
       nullif(new.raw_user_meta_data ->> 'display_name', ''),
       nullif(new.raw_user_meta_data ->> 'full_name', ''),

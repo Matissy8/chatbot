@@ -4,7 +4,7 @@ import { isSupabaseConfigured } from "@/lib/supabase/config";
 
 // Only same-site paths are allowed, so the callback can never redirect to another origin.
 function safeNextPath(value: string | null) {
-  return value && value.startsWith("/") && !value.startsWith("//") && !value.startsWith("/\\") ? value : "/chat";
+  return value && value.startsWith("/") && !value.startsWith("//") && !value.startsWith("/\\") ? value : "/";
 }
 
 export async function GET(request: NextRequest) {

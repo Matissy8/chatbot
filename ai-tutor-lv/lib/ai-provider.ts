@@ -1,7 +1,7 @@
 import { generateText } from "ai";
 import { createGoogle } from "@ai-sdk/google";
 
-export type TutorLanguage = "lv" | "en";
+export type TutorLanguage = "lv" | "en" | "ru";
 
 const MAX_CONTEXT_MESSAGES = 12;
 const MAX_CONTEXT_CHARS = 16_000;
@@ -93,7 +93,9 @@ export async function generateTutorReply({
       system:
         language === "lv"
           ? "Tu esi AI tutors Latvijas skolēniem. Atbildi latviešu valodā, izmanto pareizu izglītības terminoloģiju. Paskaidro iemeslu, ne tikai rezultātu."
-          : "You are an AI tutor for students. Answer in English, explain the reasoning clearly, and use educational terminology.",
+          : language === "ru"
+            ? "Ты — ИИ-репетитор для школьников. Отвечай на русском языке, используй точную образовательную терминологию. Объясняй ход решения, а не только ответ."
+            : "You are an AI tutor for students. Answer in English, explain the reasoning clearly, and use educational terminology.",
       messages: limitContext(messages).map((message) => ({
         role: message.role,
         content: message.content,
@@ -119,22 +121,30 @@ function buildFallbackReply({
   if (normalized.includes("d7") || normalized.includes("dominant") || normalized.includes("septakords")) {
     return language === "lv"
       ? "Dominantes septakords (D7) parasti risinās uz toniku. Pirmkārt, nosaki akorda struktūru: tonis–ters–kvinta–septīma. Tad pārbaudi balsu kustību: D7 pāriet uz tonikas akordu, lai saglabātu skaidru funkciju un izvairītos no paralēlām kvinteņām. Ja vēlies, varu arī dot tev konkrētu piemēru vai vingrinājumu."
-      : "A dominant seventh chord (D7) usually resolves to the tonic. First, identify the chord structure: root, third, fifth, and seventh. Then check voice leading so the tones move smoothly toward the tonic chord and avoid problematic parallels. I can also give you a worked example or practice exercise.";
+      : language === "ru"
+        ? "Доминантсептаккорд (D7) обычно разрешается в тонику. Сначала определи состав аккорда: основной тон, терция, квинта и септима. Затем проследи за голосоведением, чтобы звуки плавно перешли в тоническое трезвучие. Если хочешь, я приведу конкретный пример или упражнение."
+        : "A dominant seventh chord (D7) usually resolves to the tonic. First, identify the chord structure: root, third, fifth, and seventh. Then check voice leading so the tones move smoothly toward the tonic chord and avoid problematic parallels. I can also give you a worked example or practice exercise.";
   }
 
   if (normalized.includes("matem") || normalized.includes("indukc") || normalized.includes("vienādoj")) {
     return language === "lv"
       ? "Sāc ar definīciju un pārbaudi, kas ir dotais solis. Matemātikā vislabāk ir sadalīt uzdevumu mazākos posmos: 1) saprast, ko vēlas pierādīt, 2) pārbaudīt bāzes gadījumu, 3) pieņemt, ka formula darbojas, 4) pierādīt nākamajam solim. Ja vēlies, varu to izskaidrot ar konkrētu piemēru."
-      : "Start by identifying the exact claim and the structure of the proof. In mathematics, the safest method is: 1) state the claim, 2) prove the base case, 3) assume the statement for one step, 4) show it holds for the next step. I can walk through a concrete example if you want.";
+      : language === "ru"
+        ? "Сначала точно сформулируй утверждение. Для математической индукции: 1) проверь базовый случай, 2) предположи, что утверждение верно для одного шага, 3) докажи, что оно верно и для следующего шага. Могу разобрать конкретный пример."
+        : "Start by identifying the exact claim and the structure of the proof. In mathematics, the safest method is: 1) state the claim, 2) prove the base case, 3) assume the statement for one step, 4) show it holds for the next step. I can walk through a concrete example if you want.";
   }
 
   if (normalized.includes("intervāl") || normalized.includes("solfedžo") || normalized.includes("mūzika")) {
     return language === "lv"
       ? "Intervāls ir attālums starp diviem toniem. Mērķis ir saprast gan augstumu, gan kvalitāti: piemēram, čista kvarta, maza tera, perfekta kvinta. Sāc ar to, kā dzirdēt un atpazīt intervālu pēc attāluma, un tad salīdzini to ar skalu konstrukciju."
-      : "An interval is the distance between two pitches. Start with the quality and size: for example, perfect fourth, minor third, or perfect fifth. Practice hearing the distance first, then connect it to the scale structure you already know.";
+      : language === "ru"
+        ? "Интервал — это расстояние между двумя звуками. Важно определить его величину и качество: например, чистая кварта, малая терция или чистая квинта. Сначала потренируйся распознавать интервал на слух, а затем свяжи его со строением гаммы."
+        : "An interval is the distance between two pitches. Start with the quality and size: for example, perfect fourth, minor third, or perfect fifth. Practice hearing the distance first, then connect it to the scale structure you already know.";
   }
 
   return language === "lv"
     ? "Labi — sāksim vienkārši. Pirmkārt, noskaidro, ko tieši tu neizproti. Tad es to sadalīšu priekšmetā, piemēros un soli pa solim. Tu vari arī jautāt: 'Paskaidro vienkāršāk', 'Dod piemēru' vai 'Pamēģini pārbaudīt mani'."
-    : "Let’s start simply. First, identify exactly what feels confusing. Then I’ll break it down into the concept, the reasoning, and a concrete example. You can also ask for a simpler explanation, an example, or a quick test.";
+    : language === "ru"
+      ? "Давай начнём с простого. Сначала уточним, что именно непонятно, а затем разберём тему и пример по шагам. Можешь попросить объяснить проще, привести пример или проверить твои знания."
+      : "Let’s start simply. First, identify exactly what feels confusing. Then I’ll break it down into the concept, the reasoning, and a concrete example. You can also ask for a simpler explanation, an example, or a quick test.";
 }

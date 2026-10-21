@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Maestro – Tavs AI mācību asistents",
-  description: "Inteliģenta un personalizēta mācību platforma.",
+  title: "Maestro – Virtuālais skolotājs",
+  description: "Interaktīva mācību platforma ar virtuālu skolotāju.",
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {

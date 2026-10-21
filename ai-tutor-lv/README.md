@@ -9,6 +9,8 @@ Personalized AI learning platform for Latvian schools, music schools, teachers, 
 - XP, levels, streaks, and achievements
 - Leaderboard and progress tracking
 - Practice modules and teacher tools
+- Latvian, English, and Russian interface with a profile-saved language preference
+- Teaching-material analysis for images, PDF, DOCX, TXT, and Markdown files
 - AI provider abstraction for OpenAI / Anthropic
 - Responsive dark-light UI
 
@@ -30,7 +32,7 @@ Personalized AI learning platform for Latvian schools, music schools, teachers, 
    cp .env.example .env.local
 3. Add the Supabase project URL and anon/publishable key to `.env.local`. For Gemini, create a key in Google AI Studio and set `GEMINI_API_KEY`; OpenAI and Anthropic are also supported.
    To temporarily enable a non-persistent guest preview, set `NEXT_PUBLIC_ENABLE_GUEST_MODE=true` and restart the dev server. Remove the flag or set it to `false` when ready for authenticated-only access. Guest chat uses the local response fallback, practice scores remain in the browser, and teacher tools use local templates; guest activity is not saved and earns no XP. Photo AI analysis requires an authenticated account.
-4. In the Supabase SQL Editor, run `supabase/schema.sql`, `supabase/schema_chat_xp.sql`, `supabase/schema_practice.sql` and `supabase/schema_plans.sql` in that order.
+4. In the Supabase SQL Editor, run `supabase/schema_full.sql`.
 5. For immediate signup-to-onboarding testing, disable email confirmation in Supabase Auth; otherwise users must confirm their email before signing in.
 6. Start the app:
    npm run dev
@@ -42,7 +44,11 @@ See .env.example.
 
 ## Database setup
 
-Run `supabase/schema.sql`, then `supabase/schema_chat_xp.sql`, then `supabase/schema_practice.sql`, then `supabase/schema_plans.sql`. These create profiles/auth setup, private chat history and XP awarding, the private question bank plus secure one-time practice XP, and subscription plans with the daily chat limit. Do not expose a Supabase service-role key in client code; the app uses the public anon/publishable key with RLS.
+For manual setup or to update an existing database, run `supabase/schema_full.sql` in the Supabase SQL Editor. It combines `schema.sql`, `schema_chat_xp.sql`, `schema_practice.sql`, and `schema_plans.sql` in dependency order and adds newly required profile columns to existing `profiles` tables. The GitHub Actions workflow continues to apply the four component files individually. These create profiles/auth setup, private chat history and XP awarding, the private question bank plus secure one-time practice XP, and subscription plans with the daily chat limit. Do not expose a Supabase service-role key in client code; the app uses the public anon/publishable key with RLS.
+
+### Interface language
+
+Users can switch the interface between Latvian, English, and Russian from the sidebar or Settings page. The choice updates immediately, is saved in browser storage for signed-out/guest sessions, and is saved to `profiles.language` for signed-in users. Run `supabase/schema_full.sql` against an existing project so the profile language constraint accepts all three values.
 
 ### Plans and daily limit
 
@@ -68,4 +74,4 @@ Set Vercel environment variables separately in Vercel; GitHub Actions secrets ar
 
 ## Notes
 
-The app requires Supabase configuration for authentication. AI chat and material generation use Gemini, OpenAI, or Anthropic when a valid provider key is configured; otherwise educational text chat and teacher materials fall back to local templates. Homework photo analysis requires a valid provider key.
+The app requires Supabase configuration for authentication. AI chat and material generation use Gemini, OpenAI, or Anthropic when a valid provider key is configured; otherwise educational text chat and teacher materials fall back to local templates. Uploaded learning materials (images, PDF, DOCX, TXT, or Markdown) are sent to the configured AI provider for analysis and are not persisted by the app; the provider's own data-handling policy applies.

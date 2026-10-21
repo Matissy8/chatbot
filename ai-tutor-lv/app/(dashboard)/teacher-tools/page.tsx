@@ -9,6 +9,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { fetchJson } from "@/lib/fetch-json";
+import { useAppSession } from "@/components/providers/app-provider";
+import { translate } from "@/lib/i18n";
 
 type ResourceType = "lesson-plan" | "worksheet" | "quiz";
 
@@ -19,6 +21,8 @@ const resourceTypes: { value: ResourceType; label: string; description: string; 
 ];
 
 export default function TeacherToolsPage() {
+  const { language } = useAppSession();
+  const tr = (text: string) => translate(language, text);
   const [topic, setTopic] = useState("");
   const [subject, setSubject] = useState("Mūzika");
   const [grade, setGrade] = useState("8");
@@ -42,7 +46,7 @@ export default function TeacherToolsPage() {
       });
       setContent(data.content ?? "");
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Neizdevās izveidot materiālu.");
+      setError(tr(cause instanceof Error ? cause.message : "Neizdevās izveidot materiālu."));
     } finally {
       setLoading(false);
     }
@@ -52,7 +56,7 @@ export default function TeacherToolsPage() {
     try {
       await navigator.clipboard.writeText(content);
     } catch {
-      setError("Neizdevās nokopēt. Atļauj piekļuvi starpliktuvei.");
+      setError(tr("Neizdevās nokopēt. Atļauj piekļuvi starpliktuvei."));
       return;
     }
     setCopied(true);
@@ -72,45 +76,45 @@ export default function TeacherToolsPage() {
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6 p-4 sm:p-6">
       <header>
-        <p className="text-sm font-medium text-muted-foreground">Sagatavo mācību materiālus</p>
-        <h1 className="mt-1 text-3xl font-bold tracking-tight">Skolotāja rīki</h1>
-        <p className="mt-2 max-w-2xl text-sm text-muted-foreground">Izveido pielāgojamu stundas plānu, darba lapu vai pārbaudes darbu. Rezultātu vari rediģēt, kopēt vai izdrukāt.</p>
+        <p className="text-sm font-medium text-muted-foreground">{tr("Sagatavo mācību materiālus")}</p>
+        <h1 className="mt-1 text-3xl font-bold tracking-tight">{tr("Skolotāja rīki")}</h1>
+        <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{tr("Izveido pielāgojamu stundas plānu, darba lapu vai pārbaudes darbu. Rezultātu vari rediģēt, kopēt vai izdrukāt.")}</p>
       </header>
 
       <div className="grid items-start gap-5 lg:grid-cols-[340px_minmax(0,1fr)]">
         <Card className="border-border">
           <CardHeader>
-            <CardTitle className="text-base">Materiāla iestatījumi</CardTitle>
-            <CardDescription>Norādi tēmu un mērķauditoriju.</CardDescription>
+            <CardTitle className="text-base">{tr("Materiāla iestatījumi")}</CardTitle>
+            <CardDescription>{tr("Norādi tēmu un mērķauditoriju.")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
             <div className="space-y-2">
-              <label htmlFor="material-topic" className="text-sm font-medium">Tēma</label>
-              <Input id="material-topic" value={topic} onChange={(event) => setTopic(event.target.value)} maxLength={160} placeholder="Piemēram, lineārie vienādojumi" />
+              <label htmlFor="material-topic" className="text-sm font-medium">{tr("Tēma")}</label>
+              <Input id="material-topic" value={topic} onChange={(event) => setTopic(event.target.value)} maxLength={160} placeholder={tr("Piemēram, lineārie vienādojumi")} />
             </div>
             <div className="space-y-2">
-              <label htmlFor="material-subject" className="text-sm font-medium">Priekšmets</label>
+              <label htmlFor="material-subject" className="text-sm font-medium">{tr("Priekšmets")}</label>
               <Select value={subject} onValueChange={(value) => { if (typeof value === "string") setSubject(value); }}>
                 <SelectTrigger id="material-subject" className="w-full"><SelectValue /></SelectTrigger>
-                <SelectContent>{["Mūzika", "Matemātika", "Fizika", "Vēsture", "Latviešu valoda", "Cits"].map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent>
+                <SelectContent>{["Mūzika", "Matemātika", "Fizika", "Vēsture", "Latviešu valoda", "Cits"].map((value) => <SelectItem key={value} value={value}>{tr(value)}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <label htmlFor="material-grade" className="text-sm font-medium">Klase vai līmenis</label>
+              <label htmlFor="material-grade" className="text-sm font-medium">{tr("Klase vai līmenis")}</label>
               <Select value={grade} onValueChange={(value) => { if (typeof value === "string") setGrade(value); }}>
                 <SelectTrigger id="material-grade" className="w-full"><SelectValue /></SelectTrigger>
-                <SelectContent>{[...Array.from({ length: 12 }, (_, index) => `${index + 1}. klase`), "Vidusskola", "Pieaugušie"].map((value) => <SelectItem key={value} value={value.startsWith("Pieaugušie") ? "Pieaugušie" : value.split(".")[0]}>{value}</SelectItem>)}</SelectContent>
+                <SelectContent>{[...Array.from({ length: 12 }, (_, index) => `${index + 1}. klase`), "Vidusskola", "Pieaugušie"].map((value) => <SelectItem key={value} value={value.startsWith("Pieaugušie") ? "Pieaugušie" : value.startsWith("Vidusskola") ? "Vidusskola" : value.split(".")[0]}>{value.includes(". klase") ? `${value.split(".")[0]}. ${tr("klase")}` : tr(value)}</SelectItem>)}</SelectContent>
               </Select>
             </div>
 
             <fieldset className="space-y-2">
-              <legend className="text-sm font-medium">Materiāla veids</legend>
+              <legend className="text-sm font-medium">{tr("Materiāla veids")}</legend>
               <div className="space-y-2">
                 {resourceTypes.map(({ value, label, description, icon: Icon }) => (
                   <button key={value} type="button" onClick={() => setResourceType(value)} aria-pressed={resourceType === value}
                     className={`flex w-full items-start gap-3 rounded-xl border p-3 text-left transition-colors ${resourceType === value ? "border-foreground bg-muted/50" : "border-border hover:bg-muted/40"}`}>
                     <Icon className="mt-0.5 h-4 w-4 shrink-0" />
-                    <span><span className="block text-sm font-medium">{label}</span><span className="mt-0.5 block text-xs text-muted-foreground">{description}</span></span>
+                    <span><span className="block text-sm font-medium">{tr(label)}</span><span className="mt-0.5 block text-xs text-muted-foreground">{tr(description)}</span></span>
                   </button>
                 ))}
               </div>
@@ -119,22 +123,22 @@ export default function TeacherToolsPage() {
             {error && <p className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive" role="alert">{error}</p>}
             <Button onClick={() => void generateMaterial()} disabled={loading || topic.trim().length < 2} className="w-full gap-2">
               {loading ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <BookOpen className="h-4 w-4" />}
-              {loading ? "Sagatavo materiālu…" : "Ģenerēt materiālu"}
+              {tr(loading ? "Sagatavo materiālu…" : "Ģenerēt materiālu")}
             </Button>
           </CardContent>
         </Card>
 
         <Card className="min-h-[500px] border-border">
           <CardHeader className="flex flex-row items-center justify-between gap-3 border-b border-border">
-            <div><CardTitle className="text-base">Priekšskatījums</CardTitle><CardDescription>Materiālu vari pārskatīt un izdrukāt.</CardDescription></div>
+            <div><CardTitle className="text-base">{tr("Priekšskatījums")}</CardTitle><CardDescription>{tr("Materiālu vari pārskatīt un izdrukāt.")}</CardDescription></div>
             {content && <div className="flex gap-1">
-              <Button type="button" variant="ghost" size="icon" onClick={() => void copyMaterial()} aria-label={copied ? "Nokopēts" : "Kopēt materiālu"} title="Kopēt">
+              <Button type="button" variant="ghost" size="icon" onClick={() => void copyMaterial()} aria-label={tr(copied ? "Nokopēts" : "Kopēt materiālu")} title={tr("Kopēt")}>
                 {copied ? <Check className="h-4 w-4" /> : <Clipboard className="h-4 w-4" />}
               </Button>
-              <Button type="button" variant="ghost" size="icon" onClick={downloadMaterial} aria-label="Lejupielādēt materiālu" title="Lejupielādēt Markdown">
+              <Button type="button" variant="ghost" size="icon" onClick={downloadMaterial} aria-label={tr("Lejupielādēt materiālu")} title={tr("Lejupielādēt Markdown")}>
                 <Download className="h-4 w-4" />
               </Button>
-              <Button type="button" variant="ghost" size="icon" onClick={() => window.print()} aria-label="Drukāt materiālu" title="Drukāt">
+              <Button type="button" variant="ghost" size="icon" onClick={() => window.print()} aria-label={tr("Drukāt materiālu")} title={tr("Drukāt")}>
                 <Printer className="h-4 w-4" />
               </Button>
             </div>}
@@ -147,8 +151,8 @@ export default function TeacherToolsPage() {
             ) : (
               <div className="flex min-h-[360px] flex-col items-center justify-center text-center">
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-border bg-muted"><BookOpen className="h-5 w-5" /></div>
-                <p className="mt-4 text-sm font-medium">Materiāls parādīsies šeit</p>
-                <p className="mt-1 max-w-sm text-xs text-muted-foreground">Izvēlies tēmu un materiāla veidu, tad spied “Ģenerēt materiālu”.</p>
+                <p className="mt-4 text-sm font-medium">{tr("Materiāls parādīsies šeit")}</p>
+                <p className="mt-1 max-w-sm text-xs text-muted-foreground">{tr("Izvēlies tēmu un materiāla veidu, tad spied “Ģenerēt materiālu”.")}</p>
               </div>
             )}
           </CardContent>

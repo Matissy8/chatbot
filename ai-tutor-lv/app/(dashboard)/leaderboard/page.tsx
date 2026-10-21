@@ -6,6 +6,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Flame, Medal, Trophy } from "lucide-react";
 import { useState } from "react";
+import { useAppSession } from "@/components/providers/app-provider";
+import { translate } from "@/lib/i18n";
 
 const rankings = {
   week: [
@@ -53,7 +55,7 @@ const podiumStyles = [
   { icon: Medal, label: "3. vieta", color: "text-muted-foreground", surface: "bg-secondary" },
 ];
 
-function RankingList({ period }: { period: RankingPeriod }) {
+function RankingList({ period, tr, locale }: { period: RankingPeriod; tr: (text: string) => string; locale: string }) {
   const users = rankings[period];
   const [first, second, third] = users;
   const podium = [second, first, third];
@@ -73,9 +75,9 @@ function RankingList({ period }: { period: RankingPeriod }) {
                   <AvatarFallback className="bg-background font-semibold text-foreground">{user.name.charAt(0)}</AvatarFallback>
                 </Avatar>
                 <p className="font-semibold text-foreground">{user.name}</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">{rank.label} · Līmenis {user.level}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">{tr(rank.label)} · {tr("Līmenis")} {user.level}</p>
                 <Badge variant="secondary" className="mt-3 bg-background font-mono text-foreground">
-                  {user.xp.toLocaleString("lv-LV")} XP
+                  {user.xp.toLocaleString(locale)} XP
                 </Badge>
               </CardContent>
             </Card>
@@ -95,13 +97,13 @@ function RankingList({ period }: { period: RankingPeriod }) {
                 <div className="min-w-0">
                   <p className="truncate font-semibold text-foreground">{user.name}</p>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span>Līmenis {user.level}</span>
+                    <span>{tr("Līmenis")} {user.level}</span>
                     <span aria-hidden="true">·</span>
-                    <span className="inline-flex items-center"><Flame className="mr-1 h-3 w-3" />{user.streak} dienas</span>
+                    <span className="inline-flex items-center"><Flame className="mr-1 h-3 w-3" />{user.streak} {tr("dienas")}</span>
                   </div>
                 </div>
               </div>
-              <Badge variant="secondary" className="shrink-0 font-mono">{user.xp.toLocaleString("lv-LV")} XP</Badge>
+              <Badge variant="secondary" className="shrink-0 font-mono">{user.xp.toLocaleString(locale)} XP</Badge>
             </div>
           ))}
         </CardContent>
@@ -112,19 +114,22 @@ function RankingList({ period }: { period: RankingPeriod }) {
 
 export default function LeaderboardPage() {
   const [selectedPeriod, setSelectedPeriod] = useState<RankingPeriod>("month");
+  const { language } = useAppSession();
+  const tr = (text: string) => translate(language, text);
+  const locale = language === "ru" ? "ru-RU" : language === "en" ? "en-US" : "lv-LV";
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-7 p-5 md:p-8">
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <p className="text-sm font-medium text-muted-foreground">Kopiena</p>
-          <h1 className="mt-1 text-3xl font-bold tracking-tight text-foreground">Līderu saraksts</h1>
-          <p className="mt-1 text-muted-foreground">Sacenties ar citiem un audzē savu līmeni.</p>
+          <p className="text-sm font-medium text-muted-foreground">{tr("Kopiena")}</p>
+          <h1 className="mt-1 text-3xl font-bold tracking-tight text-foreground">{tr("Līderu saraksts")}</h1>
+          <p className="mt-1 text-muted-foreground">{tr("Sacenties ar citiem un audzē savu līmeni.")}</p>
         </div>
         <Card className="border-border bg-card shadow-sm">
           <CardContent className="flex items-center gap-3 p-3">
             <div className="text-right">
-              <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Tava vieta</p>
+              <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{tr("Tava vieta")}</p>
               <p className="font-bold text-foreground">#24</p>
             </div>
             <Avatar>
@@ -147,13 +152,13 @@ export default function LeaderboardPage() {
               onClick={() => setSelectedPeriod(period.value)}
               className="px-3 py-2"
             >
-              {period.label}
+              {tr(period.label)}
             </TabsTrigger>
           ))}
         </TabsList>
         {periods.map((period) => (
           <TabsContent key={period.value} value={period.value}>
-            <RankingList period={period.value} />
+            <RankingList period={period.value} tr={tr} locale={locale} />
           </TabsContent>
         ))}
       </Tabs>
