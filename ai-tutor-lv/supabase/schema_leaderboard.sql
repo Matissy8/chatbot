@@ -49,6 +49,7 @@ begin
         )
       )
     where profiles.onboarding_completed_at is not null
+      and profiles.role in ('school_student', 'music_student', 'music_high_school')
     group by profiles.id
   ),
   ranked as (
