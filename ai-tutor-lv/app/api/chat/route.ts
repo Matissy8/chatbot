@@ -14,7 +14,7 @@ import { GUEST_COOKIE_NAME, isGuestModeEnabled } from "@/lib/guest-mode";
 import { createClient } from "@/lib/supabase/server";
 import { awardXP } from "@/lib/xp";
 import { apiErrorResponse } from "@/lib/api-error";
-import { consumeChatCredit } from "@/lib/credits";
+import { consumeChatCredit, type ChatCreditResult } from "@/lib/credits";
 import { DAILY_LIMIT_CODE } from "@/lib/plans";
 import type { TutorLanguage } from "@/lib/ai-provider";
 
@@ -25,6 +25,7 @@ const MAX_MESSAGES = 50;
 const MAX_MESSAGE_LENGTH = 12_000;
 const STREAM_TIMEOUT_MS = 50_000;
 const FIRST_TURN_CACHE_TTL_MS = 30 * 60 * 1000;
+const SCHEMA_ERROR_CODES = new Set(["42P01", "42703", "PGRST204", "PGRST205"]);
 const SUBJECTS = ["Harmonija", "Solfedžo", "Mūzikas literatūra", "Matemātika", "Fizika", "Vēsture"];
 
 type IncomingMessage = { role: "user" | "assistant"; content: string };
@@ -178,7 +179,20 @@ async function handlePost(request: Request) {
   if (authError || !user) return Response.json({ error: "Sesija ir beigusies. Pieslēdzies vēlreiz." }, { status: 401 });
   const userId = user.id;
 
-  const credit = await consumeChatCredit(supabase);
+  let credit: ChatCreditResult;
+  try {
+    credit = await consumeChatCredit(supabase);
+  } catch (error) {
+    const code = typeof error === "object" && error !== null && "code" in error
+      ? String(error.code)
+      : "";
+    if (!SCHEMA_ERROR_CODES.has(code)) throw error;
+    console.error("Chat database schema is out of date; apply the Supabase schema files.", error);
+    return Response.json(
+      { error: "Datubāzes shēma nav atjaunināta. Supabase SQL Editor izpildi supabase/schema_full.sql, supabase/schema_learning_features.sql un supabase/schema_leaderboard.sql." },
+      { status: 503, headers: { "Cache-Control": "no-store" } }
+    );
+  }
   if (credit.blocked) {
     return Response.json(
       { error: `Šodienas bezmaksas limits (${credit.limit} jautājumi) ir sasniegts.`, code: DAILY_LIMIT_CODE, limit: credit.limit },

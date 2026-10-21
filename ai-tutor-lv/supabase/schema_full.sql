@@ -115,6 +115,10 @@ create table if not exists public.messages (
   created_at timestamptz not null default now()
 );
 
+-- Bring existing installations created by older versions up to the current chat schema.
+alter table public.chats add column if not exists subject text not null default 'General';
+alter table public.chats add column if not exists updated_at timestamptz not null default now();
+
 create table if not exists public.xp_transactions (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users (id) on delete cascade,

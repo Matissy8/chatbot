@@ -91,6 +91,7 @@ export function Sidebar() {
   const { session, language, changeLanguage } = useAppSession();
   const isGuest = Boolean(session?.isGuest);
   const [userChats, setUserChats] = useState<{ id: string; title: string }[]>([]);
+  const [chatHistoryError, setChatHistoryError] = useState(false);
   const [theme, setTheme] = useState<ThemeMode>("light");
   const [languageError, setLanguageError] = useState("");
   const tr = (text: string) => translate(language, text);
@@ -102,6 +103,7 @@ export function Sidebar() {
   const loadUserChats = useCallback(async () => {
     if (!session?.id || isGuest) {
       setUserChats([]);
+      setChatHistoryError(false);
       return;
     }
 
@@ -114,9 +116,11 @@ export function Sidebar() {
         .limit(8);
       if (error) throw error;
       setUserChats(data ?? []);
+      setChatHistoryError(false);
     } catch (error) {
       console.error("Unable to load recent chats:", error);
       setUserChats([]);
+      setChatHistoryError(true);
     }
   }, [session?.id, isGuest]);
 
@@ -190,7 +194,9 @@ export function Sidebar() {
                   active={pathname === `/chat/${chat.id}`}
                   title={chat.title}
                 />
-              )) : (
+              )              ) : chatHistoryError ? (
+                <p className="px-3 py-2 text-xs text-destructive" role="status">{tr("Neizdevās ielādēt nesenās sarunas.")}</p>
+              ) : (
                 <p className="px-3 py-2 text-xs text-muted-foreground">{tr("Sarunu vēl nav")}</p>
               )}
             </div>

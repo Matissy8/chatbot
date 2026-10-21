@@ -45,4 +45,4 @@ jobs:
 
       - name: Explain missing database secret
         if: ${{ env.SUPABASE_DB_URL == '' }}
-        run: echo "Skipped Supabase schema deployment; add SUPABASE_DB_URL under repository Actions secrets to enable it."
+        run: echo "::warning title=Supabase schema not applied::Add SUPABASE_DB_URL under repository Settings > Secrets and variables > Actions, then rerun this workflow. The database schema was not changed."
