@@ -30,7 +30,7 @@ export default function PracticePage() {
   const [result, setResult] = useState<CompletionResult | null>(null);
   const [error, setError] = useState("");
 
-  const question = questions[currentQuestion];
+  const question = questions?.[currentQuestion];
   const answeredCount = Object.keys(answers).length;
 
   async function startQuiz() {
@@ -55,6 +55,9 @@ export default function PracticePage() {
         body: JSON.stringify({ subject, difficulty }),
         timeoutMs: 20_000,
       });
+      if (!data || typeof data.attemptId !== "string" || !Array.isArray(data.questions) || data.questions.length === 0) {
+        throw new Error("Neizdevās saņemt jautājumus.");
+      }
       setAttemptId(data.attemptId);
       setQuestions(data.questions);
     } catch (cause) {

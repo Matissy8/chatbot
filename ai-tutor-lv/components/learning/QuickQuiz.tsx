@@ -37,7 +37,7 @@ export function QuickQuiz() {
   const [summary, setSummary] = useState<QuizSummary | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const question = questions[currentIndex];
+  const question = questions?.[currentIndex];
   const answer = question ? answers[question.id] : undefined;
 
   async function startQuiz() {
@@ -56,6 +56,9 @@ export function QuickQuiz() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action: "start" }),
         });
+        if (!result || typeof result.attemptId !== "string" || !Array.isArray(result.questions) || result.questions.length === 0) {
+          throw new Error("Neizdevās saņemt jautājumus.");
+        }
         setAttemptId(result.attemptId);
         setQuestions(result.questions);
       }
