@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useAppSession } from "@/components/providers/app-provider";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { gradeLabel } from "@/lib/grade-levels";
 import { translate, type Language } from "@/lib/i18n";
 
 const userTypes = ["school_student", "music_student", "music_high_school", "teacher", "independent"] as const;
@@ -143,7 +144,7 @@ export function OnboardingForm() {
               </SelectTrigger>
               <SelectContent>
                 {Array.from({ length: 12 }, (_, index) => String(index + 1)).map((value) => (
-                  <SelectItem key={value} value={value}>{value}. {tr("klase")}</SelectItem>
+                  <SelectItem key={value} value={value}>{gradeLabel(value, tr("klase"), interfaceLanguage === "lv")}</SelectItem>
                 ))}
               </SelectContent>
             </Select>

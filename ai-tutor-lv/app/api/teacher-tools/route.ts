@@ -1,5 +1,6 @@
 import { generateText } from "ai";
-import { aiRequestOptions, cacheGet, cacheSet, getConfiguredModel, hasConfiguredAIProvider } from "@/lib/ai-provider";
+import { describeGradeForAI, GRADE_LEVEL_RULES } from "@/lib/grade-levels";
+import { aiRequestOptions, withLatvianStyle, cacheGet, cacheSet, getConfiguredModel, hasConfiguredAIProvider } from "@/lib/ai-provider";
 import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
 import { GUEST_COOKIE_NAME, isGuestModeEnabled } from "@/lib/guest-mode";
@@ -55,7 +56,7 @@ async function handlePost(request: Request) {
   }
 
   const resourceType = type as ResourceType;
-  const prompt = `Sagatavo ${resourceLabels[resourceType]} latviešu valodā. Priekšmets: ${subject}. Tēma: ${topic}. Klašu līmenis: ${grade || "vispārīgs"}.\n\nPrasības: lieto skaidru, drukāšanai piemērotu Markdown struktūru. Materiālam jābūt pedagoģiski korektam un vecumam atbilstošam. Iekļauj konkrētus uzdevumus, nevis tikai tukšas norādes. ${resourceType === "quiz" || resourceType === "worksheet" ? "Pievieno skolotājam paredzētu atbilžu atslēgu un īsus vērtēšanas kritērijus." : "Iekļauj mērķus, laika sadalījumu, mācību aktivitātes un diferencēšanas ieteikumus."}`;
+  const prompt = `Sagatavo ${resourceLabels[resourceType]} latviešu valodā. Priekšmets: ${subject}. Tēma: ${topic}. Klašu līmenis: ${grade ? describeGradeForAI(grade) : "vispārīgs"}. ${GRADE_LEVEL_RULES}\n\nPrasības: lieto skaidru, drukāšanai piemērotu Markdown struktūru. Materiālam jābūt pedagoģiski korektam un vecumam atbilstošam. Iekļauj konkrētus uzdevumus, nevis tikai tukšas norādes. ${resourceType === "quiz" || resourceType === "worksheet" ? "Pievieno skolotājam paredzētu atbilžu atslēgu un īsus vērtēšanas kritērijus." : "Iekļauj mērķus, laika sadalījumu, mācību aktivitātes un diferencēšanas ieteikumus."}`;
 
   let content: string;
   const cacheKey = `teacher|${resourceType}|${subject}|${grade}|${topic.toLowerCase()}`;
@@ -67,7 +68,7 @@ async function handlePost(request: Request) {
       const { text } = await generateText({
         model: getConfiguredModel(),
         ...aiRequestOptions(50_000, 2500, request.signal),
-        system: "Tu esi pieredzējis Latvijas skolotājs un mācību materiālu redaktors. Veido precīzus, praktiskus un iekļaujošus materiālus.",
+        system: withLatvianStyle("Tu esi pieredzējis Latvijas skolotājs un mācību materiālu redaktors. Veido precīzus, praktiskus un iekļaujošus materiālus."),
         prompt,
       });
       if (!text.trim()) throw new Error("Empty AI response");

@@ -21,11 +21,24 @@ export function limitContext<T extends { role: string; content: string }>(messag
   return kept;
 }
 
+// Appended to system prompts; the rules apply only when the reply is written in Latvian.
+export const LATVIAN_STYLE_RULES = [
+  "Ja atbildi latviešu valodā: lieto tikai pareizu, dabisku latviešu literāro valodu ar korektu gramatiku, locījumiem, dzimti un interpunkciju.",
+  "Nekopē angļu valodas teikuma uzbūvi un neveido jaunus vārdus; ja neesi drošs par vārda formu, izvēlies vienkāršāku, pārbaudītu formulējumu.",
+  "Mūzikas terminoloģija: skaņu Si apzīmē ar H, bet Si bemolu ar B; lieto 'tīrā kvinta', 'mazā tercija', 'lielā seksta', 'skaņkārta', 'tonalitāte', 'atslēga', 'taktsmērs'.",
+  "Piemērs stilam. Jautājums: Kas ir tīrā kvinta? Atbilde: Tīrā kvinta ir konsonējošs intervāls, kas aptver piecas pakāpes un ietver trīs ar pusi toņus; piemēram, no skaņas C uz augšu tā ir skaņa G.",
+].join(" ");
+
+export function withLatvianStyle(system: string) {
+  return `${system} ${LATVIAN_STYLE_RULES}`;
+}
+
 export function aiRequestOptions(timeoutMs: number, maxOutputTokens: number, signal?: AbortSignal) {
   const timeout = AbortSignal.timeout(timeoutMs);
   return {
     abortSignal: signal ? AbortSignal.any([timeout, signal]) : timeout,
     maxOutputTokens,
+    temperature: 0.3,
     providerOptions: { google: { thinkingConfig: { thinkingLevel: "low" } } },
   };
 }
@@ -92,7 +105,7 @@ export async function generateTutorReply({
       ...aiRequestOptions(30_000, 1200),
       system:
         language === "lv"
-          ? "Tu esi AI tutors Latvijas skolēniem. Atbildi latviešu valodā, izmanto pareizu izglītības terminoloģiju. Paskaidro iemeslu, ne tikai rezultātu."
+          ? withLatvianStyle("Tu esi AI tutors Latvijas skolēniem. Atbildi latviešu valodā, izmanto pareizu izglītības terminoloģiju. Paskaidro iemeslu, ne tikai rezultātu.")
           : language === "ru"
             ? "Ты — ИИ-репетитор для школьников. Отвечай на русском языке, используй точную образовательную терминологию. Объясняй ход решения, а не только ответ."
             : "You are an AI tutor for students. Answer in English, explain the reasoning clearly, and use educational terminology.",

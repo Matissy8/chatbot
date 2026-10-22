@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { fetchJson } from "@/lib/fetch-json";
+import { gradeLabel } from "@/lib/grade-levels";
 import { useAppSession } from "@/components/providers/app-provider";
 import { translate } from "@/lib/i18n";
 
@@ -103,7 +104,7 @@ export default function TeacherToolsPage() {
               <label htmlFor="material-grade" className="text-sm font-medium">{tr("Klase vai līmenis")}</label>
               <Select value={grade} onValueChange={(value) => { if (typeof value === "string") setGrade(value); }}>
                 <SelectTrigger id="material-grade" className="w-full"><SelectValue /></SelectTrigger>
-                <SelectContent>{[...Array.from({ length: 12 }, (_, index) => `${index + 1}. klase`), "Vidusskola", "Pieaugušie"].map((value) => <SelectItem key={value} value={value.startsWith("Pieaugušie") ? "Pieaugušie" : value.startsWith("Vidusskola") ? "Vidusskola" : value.split(".")[0]}>{value.includes(". klase") ? `${value.split(".")[0]}. ${tr("klase")}` : tr(value)}</SelectItem>)}</SelectContent>
+                <SelectContent>{[...Array.from({ length: 12 }, (_, index) => String(index + 1)), "Vidusskola", "Pieaugušie"].map((value) => <SelectItem key={value} value={value}>{/^\d+$/.test(value) ? gradeLabel(value, tr("klase"), language === "lv") : tr(value)}</SelectItem>)}</SelectContent>
               </Select>
             </div>
 
