@@ -3,6 +3,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AppProvider } from "@/components/providers/app-provider";
 import { cookies } from "next/headers";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { GUEST_COOKIE_NAME, isGuestModeEnabled } from "@/lib/guest-mode";
 
 const geistSans = Geist({
@@ -31,6 +33,8 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full bg-background text-foreground">
         <AppProvider key={initialGuestMode ? "guest" : "authenticated"} initialGuestMode={initialGuestMode}>{children}</AppProvider>
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
