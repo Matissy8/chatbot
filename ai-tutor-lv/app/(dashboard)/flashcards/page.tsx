@@ -21,7 +21,8 @@ export default function FlashcardsPage() {
   const [loading, setLoading] = useState(() => !session?.isGuest);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const card = flashcards[index];
+  const isComplete = index >= flashcards.length;
+  const card = flashcards[Math.min(index, flashcards.length - 1)];
   const currentProgress = progress[card.id] ?? { known_count: 0, review_count: 0 };
   const completedReviews = Object.values(progress).reduce((total, item) => total + (item?.known_count ?? 0) + (item?.review_count ?? 0), 0);
 
@@ -43,7 +44,7 @@ export default function FlashcardsPage() {
   }, [session?.isGuest, language]);
 
   async function rateCard(knew: boolean) {
-    if (saving) return;
+    if (saving || isComplete) return;
     setSaving(true);
     setError("");
     try {
@@ -65,12 +66,26 @@ export default function FlashcardsPage() {
         void refreshSession().catch((cause: unknown) => console.error("Unable to refresh flashcard activity:", cause));
       }
       setFlipped(false);
-      setIndex((current) => (current + 1) % flashcards.length);
+      setIndex((current) => current + 1);
     } catch (cause) {
       setError(tr(cause instanceof Error ? cause.message : "Neizdevās saglabāt kartītes progresu."));
     } finally {
       setSaving(false);
     }
+  }
+
+  if (isComplete) {
+    return (
+      <div className="mx-auto flex w-full max-w-3xl flex-col items-center gap-4 rounded-2xl border border-border bg-card p-8 text-center shadow-sm">
+        <BookOpen className="h-10 w-10 text-primary" aria-hidden="true" />
+        <h1 className="text-2xl font-bold">{tr("Visas kartītes atkārtotas! 🎉")}</h1>
+        <p className="text-sm text-muted-foreground">{tr("Atkārtojumu kopā")}: {completedReviews}</p>
+        {error && <p className="text-sm text-destructive" role="alert">{error}</p>}
+        <Button type="button" onClick={() => { setIndex(0); setFlipped(false); setError(""); }}>
+          {tr("Sākt vēlreiz")}
+        </Button>
+      </div>
+    );
   }
 
   return (
@@ -134,10 +149,10 @@ export default function FlashcardsPage() {
             <span>{tr("Atkārtojumu kopā")}: {completedReviews}</span>
           </div>
           <div className="flex justify-between">
-            <Button variant="ghost" size="sm" disabled={saving} onClick={() => { setIndex((value) => (value + flashcards.length - 1) % flashcards.length); setFlipped(false); }}>
+            <Button variant="ghost" size="sm" disabled={saving || index === 0} onClick={() => { setIndex((value) => Math.max(0, value - 1)); setFlipped(false); }}>
               <ArrowLeft className="mr-1 h-4 w-4" /> {tr("Iepriekšējā")}
             </Button>
-            <Button variant="ghost" size="sm" disabled={saving} onClick={() => { setIndex((value) => (value + 1) % flashcards.length); setFlipped(false); }}>
+            <Button variant="ghost" size="sm" disabled={saving || index === flashcards.length - 1} onClick={() => { setIndex((value) => Math.min(flashcards.length - 1, value + 1)); setFlipped(false); }}>
               {tr("Nākamā")} <ArrowRight className="ml-1 h-4 w-4" />
             </Button>
           </div>
