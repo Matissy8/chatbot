@@ -3,6 +3,8 @@ import { apiErrorResponse } from "@/lib/api-error";
 import { createClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function GET() {
   try {
@@ -12,7 +14,8 @@ export async function GET() {
 
     const { data, error } = await supabase
       .from("flashcard_progress")
-      .select("card_id, known_count, review_count");
+      .select("card_id, known_count, review_count")
+      .eq("user_id", user.id);
     if (error) {
       console.error("Flashcard progress load failed:", error);
       return Response.json({ error: "Neizdevās ielādēt kartīšu progresu." }, { status: 503 });

@@ -3,6 +3,8 @@ import { apiErrorResponse } from "@/lib/api-error";
 import { createClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function GET() {
   try {
@@ -12,7 +14,8 @@ export async function GET() {
 
     const { data, error } = await supabase
       .from("learning_path_progress")
-      .select("lesson_id");
+      .select("lesson_id")
+      .eq("user_id", user.id);
     if (error) {
       console.error("Learning path progress load failed:", error);
       return Response.json({ error: "Neizdevās ielādēt mācību ceļa progresu." }, { status: 503 });

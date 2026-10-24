@@ -20,6 +20,7 @@ const guestAllowedRoutes = [
 const protectedRoutes = [
   "/api/chat",
   "/api/practice",
+  "/api/progress",
   "/api/teacher-tools",
   "/api/assistant-screen",
   "/api/audio-quiz",
