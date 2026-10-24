@@ -17,7 +17,8 @@ import { createClient } from "@/lib/supabase/server";
 import { awardXP } from "@/lib/xp";
 import { cancelReservation, getReservationId, isConfirmed } from "@/lib/usage-reservation";
 import { apiErrorResponse } from "@/lib/api-error";
-import { describeGradeForAI, GRADE_LEVEL_RULES } from "@/lib/grade-levels";
+import { describeGradeForAI, GRADE_LEVEL_RULES, normalizeGradeLevel } from "@/lib/grade-levels";
+import { MUSIC_SUBJECTS, MUSIC_SUBJECT_AI_RULES, normalizeMusicSubject } from "@/lib/music-subjects";
 import { DAILY_LIMIT_CODE, FREE_DAILY_QUESTION_LIMIT } from "@/lib/plans";
 import type { TutorLanguage } from "@/lib/ai-provider";
 
@@ -28,7 +29,7 @@ const MAX_MESSAGES = 50;
 const MAX_MESSAGE_LENGTH = 12_000;
 const AI_TIMEOUT_MS = 40_000;
 const FIRST_TURN_CACHE_TTL_MS = 30 * 60 * 1000;
-const SUBJECTS = ["Harmonija", "Solfedžo", "Mūzikas literatūra", "Matemātika", "Fizika", "Vēsture"];
+
 const BASE_HEADERS = {
   "Content-Type": "text/plain; charset=utf-8",
   "Cache-Control": "no-cache, no-transform",
@@ -39,11 +40,9 @@ type ServerClient = Awaited<ReturnType<typeof createClient>>;
 type Profile = { role: string | null; grade_level: number | string | null; language: string | null } | null;
 
 function getSubject(text: string, requestedSubject: unknown): string {
-  if (typeof requestedSubject === "string" && requestedSubject.trim()) {
-    return requestedSubject.trim().slice(0, 80);
-  }
-  const normalized = text.toLocaleLowerCase("lv");
-  return SUBJECTS.find((subject) => normalized.includes(subject.toLocaleLowerCase("lv"))) ?? "General";
+  const input = typeof requestedSubject === "string" && requestedSubject.trim() ? requestedSubject : text;
+  const subjectId = normalizeMusicSubject(input);
+  return MUSIC_SUBJECTS.find((subject) => subject.id === subjectId)?.name ?? "Mūzikas teorija";
 }
 
 async function persistAssistantReply(supabase: ServerClient, chatId: string, userId: string, text: string, subject: string) {
@@ -194,13 +193,22 @@ async function handlePost(request: Request) {
 
     const language: TutorLanguage = profile?.language === "en" || profile?.language === "ru" ? profile.language : "lv";
     const responseLanguage = language === "lv" ? "Latvian" : language === "ru" ? "Russian" : "English";
+    const subjectDefinition = MUSIC_SUBJECTS.find((item) => item.name === subject);
+    const studentGrade = normalizeGradeLevel(profile?.grade_level ?? "");
+    const subjectGradeRule = subjectDefinition
+      ? studentGrade !== null && studentGrade < subjectDefinition.minGrade
+        ? `Šim priekšmetam nepieciešamais līmenis ir no ${subjectDefinition.minGrade}. klases; skolēna līmenim atbilstoši paskaidro tikai priekšzināšanas un neveido šī priekšmeta padziļinātus uzdevumus.`
+        : `Priekšmeta "${subjectDefinition.name}" ieteicamais sākuma līmenis ir ${subjectDefinition.minGrade}. klase.`
+      : "";
     const sourceInstructions = "When answering questions or analyzing uploaded materials, you MUST provide a precise citation to the source file, book, or chapter in the format [Avots: Faila nosaukums / lpp.]. Never invent citations. Cite only sources actually provided in the conversation; if no source or page is available, say so instead of fabricating one.";
     const system = [
       `Tu esi atbalstošs un akadēmiski precīzs Maestro mācību asistents Latvijas skolēniem. Atbildi ${responseLanguage} valodā.`,
       `Lietotāja mācību loma: ${profile?.role ?? "independent"}; klase: ${describeGradeForAI(profile?.grade_level)}. Tēma: ${subject}.`,
       GRADE_LEVEL_RULES,
+      subjectGradeRule,
       sourceInstructions,
-      "Palīdzi ar skolas mācību priekšmetiem un mūziku (harmonija, solfedžo, mūzikas literatūra). Ņem vērā visu iepriekšējo sarunu, atbildi tieši uz pēdējo jautājumu un neatkārto iepriekšējās atbildes. Ja neesi pārliecināts, pasaki to godīgi un sniedz to, ko zini droši.",
+      MUSIC_SUBJECT_AI_RULES,
+      "Palīdzi tikai ar Latvijas mūzikas skolu priekšmetiem. Izvēlētais priekšmets ir orientējošs; ja jautājums ir par vispārizglītojošu priekšmetu ārpus mūzikas konteksta, pieklājīgi paskaidro platformas tvērumu un piedāvā ar mūziku saistītu tēmu. Ņem vērā visu iepriekšējo sarunu, atbildi tieši uz pēdējo jautājumu un neatkārto iepriekšējās atbildes. Ja neesi pārliecināts, pasaki to godīgi un sniedz to, ko zini droši.",
       "Esi kodolīgs; izmanto Markdown un KaTeX formulas, ja tas palīdz, un paskaidro risinājuma gaitu.",
       LATVIAN_STYLE_RULES,
     ].join(" ");

@@ -30,12 +30,12 @@ import { translate } from "@/lib/i18n";
 
 const suggestions = [
   { title: "Paskaidro D7 akorda atrisinājumu", subject: "Mūzika · Harmonija", icon: Music2 },
-  { title: "Izskaidro taktsmēru un notu garumu matemātiskās attiecības", subject: "Matemātika · Ritms un Harmonija", icon: Sigma },
+  { title: "Izskaidro taktsmēru un notu garumu muzikālās attiecības", subject: "Mūzikas teorija · Ritms", icon: Sigma },
   { title: "Dod man solfedžo ritma uzdevumu", subject: "Mūzika · Solfedžo", icon: BookOpen },
-  { title: "Kā veidojas skaņas viļņi un instrumentu rezonanse?", subject: "Fizika · Skaņas daba & Akustika", icon: Sparkles },
+  { title: "Kā veidojas skaņas viļņi un instrumentu rezonanse?", subject: "Mūzikas teorija · Akustika", icon: Sparkles },
 ];
 
-const subjects = ["Harmonija", "Solfedžo", "Matemātika", "Fizika", "Mūzikas literatūra", "Vēsture"];
+const subjects = ["Solfedžo", "Mūzikas teorija", "Mūzikas literatūra", "Harmonija", "Polifonija", "Mūzikas formu analīze", "Diriģēšana", "Instrumentācija un orķestrācija"];
 
 export function ChatInterface({
   chatId: initialChatId,
@@ -147,7 +147,7 @@ export function ChatInterface({
       <header className="z-10 flex shrink-0 items-center justify-between border-b border-border bg-background/90 px-4 py-3 backdrop-blur sm:px-6">
         <div>
           <h1 className="text-[18px] font-semibold tracking-tight">{tr("Mācību dialogs")}</h1>
-          <p className="mt-0.5 text-xs text-muted-foreground">{tr("Uzdod jautājumu par teoriju, uzdevumu risināšanu vai mūzikas analīzi.")}</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">{tr("Uzdod jautājumu par mūzikas skolas priekšmetiem — solfedžo, teoriju, mūzikas literatūru un citiem.")}</p>
         </div>
         <Button
           type="button"
