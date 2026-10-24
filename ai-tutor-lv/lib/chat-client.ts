@@ -8,11 +8,13 @@ const IDLE_TIMEOUT_MS = 30_000;
 export async function streamChatReply({
   messages,
   chatId,
+  subject,
   signal: external,
   onText,
 }: {
   messages: ChatMessage[];
   chatId?: string;
+  subject?: string;
   signal?: AbortSignal;
   onText: (text: string) => void;
 }): Promise<{ chatId?: string; text: string }> {
@@ -32,7 +34,7 @@ export async function streamChatReply({
     const response = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages, chatId }),
+      body: JSON.stringify({ messages, chatId, subject }),
       signal: controller.signal,
     });
     assertSession(response);

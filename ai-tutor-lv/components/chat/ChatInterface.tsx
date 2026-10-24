@@ -27,6 +27,8 @@ import { useAppSession } from "@/components/providers/app-provider";
 import { streamChatReply } from "@/lib/chat-client";
 import { isAbort, isLimitReached } from "@/lib/fetch-json";
 import { translate } from "@/lib/i18n";
+import { SubjectSelector } from "@/components/chat/SubjectSelector";
+import { MUSIC_SUBJECTS } from "@/lib/music-subjects";
 
 const suggestions = [
   { title: "Paskaidro D7 akorda atrisinājumu", subject: "Mūzika · Harmonija", icon: Music2 },
@@ -34,8 +36,6 @@ const suggestions = [
   { title: "Dod man solfedžo ritma uzdevumu", subject: "Mūzika · Solfedžo", icon: BookOpen },
   { title: "Kā veidojas skaņas viļņi un instrumentu rezonanse?", subject: "Mūzikas teorija · Akustika", icon: Sparkles },
 ];
-
-const subjects = ["Solfedžo", "Mūzikas teorija", "Mūzikas literatūra", "Harmonija", "Polifonija", "Mūzikas formu analīze", "Diriģēšana", "Instrumentācija un orķestrācija"];
 
 export function ChatInterface({
   chatId: initialChatId,
@@ -47,7 +47,7 @@ export function ChatInterface({
   initialPrompt?: string;
 }) {
   const router = useRouter();
-  const { refreshSession, language } = useAppSession();
+  const { refreshSession, language, session } = useAppSession();
   const tr = (text: string) => translate(language, text);
   const [chatId, setChatId] = useState(initialChatId);
   const [messages, setMessages] = useState<ChatMessageData[]>(initialMessages);
@@ -56,6 +56,7 @@ export function ChatInterface({
   const [imageAttached, setImageAttached] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [limit, setLimit] = useState<number | null>(null);
+  const [selectedSubject, setSelectedSubject] = useState("solfedzo");
   const scrollRef = useRef<HTMLDivElement>(null);
   const busyRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
@@ -91,6 +92,7 @@ export function ChatInterface({
       const result = await streamChatReply({
         messages: nextMessages,
         chatId,
+        subject: selectedSubject,
         signal: controller.signal,
         onText: (value) => {
           latest = value;
@@ -217,15 +219,15 @@ export function ChatInterface({
             </div>
 
             <div className="mt-5 flex flex-wrap justify-center gap-2">
-              {subjects.map((subject) => (
+              {MUSIC_SUBJECTS.filter((subject) => (session?.grade ?? 1) >= subject.minGrade).map((subject) => (
                 <button
-                  key={subject}
+                  key={subject.id}
                   type="button"
-                  onClick={() => void sendMessage(`${tr("Pastāsti par")} ${tr(subject)} ${tr("pamatiem")}`)}
+                  onClick={() => void sendMessage(`${tr("Pastāsti par")} ${tr(subject.name)} ${tr("pamatiem")}`)}
                   disabled={loading}
                   className="rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  {tr(subject)}
+                  {tr(subject.name)}
                 </button>
               ))}
             </div>
@@ -268,6 +270,7 @@ export function ChatInterface({
               className="max-h-36 min-h-10 resize-none border-0 bg-transparent px-2 py-2 text-sm shadow-none focus-visible:ring-0"
             />
             <div className="flex items-center justify-between pt-1">
+              <SubjectSelector selectedSubject={selectedSubject} onSelect={setSelectedSubject} gradeLevel={session?.grade ?? 1} language={language} />
               <div className="flex items-center gap-1">
                 <Button
                   type="button"
