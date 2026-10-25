@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ChatMessage } from "@/components/chat/ChatMessage";
 import { LimitReachedModal } from "@/components/chat/LimitReachedModal";
-import type { ChatMessage as ChatMessageData } from "@/lib/demo-data";
+import type { ChatMessage as ChatMessageData } from "@/lib/chat-types";
 import { streamChatReply } from "@/lib/chat-client";
 import { isAbort, isLimitReached } from "@/lib/fetch-json";
 import { useAppSession } from "@/components/providers/app-provider";

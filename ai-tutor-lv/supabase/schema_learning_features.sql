@@ -406,13 +406,119 @@ begin
 end;
 $$;
 
+create or replace function public.get_quick_quiz_achievement_stats()
+returns table (completed_quizzes bigint, best_score integer, best_question_count integer)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select
+    (
+      select count(*)
+      from public.quick_quiz_attempts q
+      where q.user_id = (select auth.uid()) and q.completed_at is not null
+    ),
+    coalesce((
+      select q.score
+      from public.quick_quiz_attempts q
+      where q.user_id = (select auth.uid()) and q.completed_at is not null
+      order by q.score desc, q.completed_at desc
+      limit 1
+    ), 0),
+    coalesce((
+      select jsonb_array_length(q.question_set)
+      from public.quick_quiz_attempts q
+      where q.user_id = (select auth.uid()) and q.completed_at is not null
+      order by q.score desc, q.completed_at desc
+      limit 1
+    ), 5);
+$$;
+
+-- Achievement unlocks are derived and persisted by the authenticated-only RPC below.
+create table if not exists public.user_achievements (
+  user_id uuid not null references auth.users (id) on delete cascade,
+  achievement_id text not null check (achievement_id in (
+    'first-quiz', 'streak-3', 'streak-7', 'xp-100', 'flashcard-20', 'perfect-quiz'
+  )),
+  unlocked_at timestamptz not null default now(),
+  primary key (user_id, achievement_id)
+);
+
+alter table public.user_achievements enable row level security;
+drop policy if exists "user_achievements_select_own" on public.user_achievements;
+drop policy if exists "user_achievements_insert_own" on public.user_achievements;
+drop policy if exists "Users can read their own achievements" on public.user_achievements;
+create policy "Users can read their own achievements"
+  on public.user_achievements for select to authenticated
+  using ((select auth.uid()) = user_id);
+revoke all on public.user_achievements from public, anon, authenticated;
+grant select on public.user_achievements to authenticated;
+
+create or replace function public.refresh_user_achievements()
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  current_user_id uuid := auth.uid();
+  current_xp integer;
+  current_streak integer;
+  reviewed_cards bigint;
+begin
+  if current_user_id is null then raise exception 'not authorized'; end if;
+
+  select coalesce(max(p.xp), 0), coalesce(max(p.streak), 0)
+  into current_xp, current_streak
+  from public.profiles p
+  where p.id = current_user_id;
+
+  insert into public.user_achievements (user_id, achievement_id)
+  select current_user_id, a.achievement_id
+  from (values
+    ('first-quiz', exists (
+      select 1 from public.quick_quiz_attempts q
+      where q.user_id = current_user_id and q.completed_at is not null
+    )),
+    ('streak-3', current_streak >= 3),
+    ('streak-7', current_streak >= 7),
+    ('xp-100', current_xp >= 100),
+    ('perfect-quiz', exists (
+      select 1 from public.quick_quiz_attempts q
+      where q.user_id = current_user_id
+        and q.completed_at is not null
+        and q.score = 5
+        and jsonb_array_length(q.question_set) = 5
+    ))
+  ) as a(achievement_id, achieved)
+  where a.achieved
+  on conflict (user_id, achievement_id) do nothing;
+
+  select coalesce(sum(f.known_count + f.review_count), 0)
+  into reviewed_cards
+  from public.flashcard_progress f
+  where f.user_id = current_user_id;
+
+  if reviewed_cards >= 20 then
+    insert into public.user_achievements (user_id, achievement_id)
+    values (current_user_id, 'flashcard-20')
+    on conflict (user_id, achievement_id) do nothing;
+  end if;
+end;
+$$;
+
 revoke all on function public.start_quick_quiz() from public, anon;
 revoke all on function public.submit_quick_quiz_answer(uuid, text, integer) from public, anon;
 revoke all on function public.complete_quick_quiz(uuid) from public, anon;
 revoke all on function public.record_flashcard_review(text, boolean) from public, anon;
 revoke all on function public.complete_learning_path_lesson(text) from public, anon;
+revoke all on function public.get_quick_quiz_achievement_stats() from public, anon;
+revoke all on function public.refresh_user_achievements() from public, anon;
 grant execute on function public.start_quick_quiz() to authenticated;
 grant execute on function public.submit_quick_quiz_answer(uuid, text, integer) to authenticated;
 grant execute on function public.complete_quick_quiz(uuid) to authenticated;
 grant execute on function public.record_flashcard_review(text, boolean) to authenticated;
 grant execute on function public.complete_learning_path_lesson(text) to authenticated;
+grant execute on function public.get_quick_quiz_achievement_stats() to authenticated;
+grant execute on function public.refresh_user_achievements() to authenticated;

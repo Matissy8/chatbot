@@ -5,7 +5,7 @@ import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import { cn } from "@/lib/utils";
-import type { ChatMessage as ChatMessageData } from "@/lib/demo-data";
+import type { ChatMessage as ChatMessageData } from "@/lib/chat-types";
 import { useAppSession } from "@/components/providers/app-provider";
 import { translate } from "@/lib/i18n";
 import { findNoteSequences, playNoteSequence } from "@/lib/music-audio";

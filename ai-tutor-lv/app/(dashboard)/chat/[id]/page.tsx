@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { ChatInterface } from "@/components/chat/ChatInterface";
 import { createClient } from "@/lib/supabase/server";
-import type { ChatMessage } from "@/lib/demo-data";
+import type { ChatMessage } from "@/lib/chat-types";
 
 export default async function DynamicChatPage({ params }: PageProps<"/chat/[id]">) {
   const { id } = await params;

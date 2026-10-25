@@ -21,6 +21,7 @@ const protectedRoutes = [
   "/api/chat",
   "/api/practice",
   "/api/progress",
+  "/api/achievements",
   "/api/teacher-tools",
   "/api/assistant-screen",
   "/api/audio-quiz",

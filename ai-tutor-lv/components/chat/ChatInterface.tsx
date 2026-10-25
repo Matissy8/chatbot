@@ -22,7 +22,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ChatMessage } from "@/components/chat/ChatMessage";
 import { FloatingAssistant } from "@/components/chat/FloatingAssistant";
 import { LimitReachedModal } from "@/components/chat/LimitReachedModal";
-import type { ChatMessage as ChatMessageData } from "@/lib/demo-data";
+import type { ChatMessage as ChatMessageData } from "@/lib/chat-types";
 import { useAppSession } from "@/components/providers/app-provider";
 import { streamChatReply } from "@/lib/chat-client";
 import { isAbort, isLimitReached } from "@/lib/fetch-json";

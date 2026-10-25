@@ -1,5 +1,5 @@
 import { RequestError, assertSession, readErrorDetails, toRequestError } from "@/lib/fetch-json";
-import type { ChatMessage } from "@/lib/demo-data";
+import type { ChatMessage } from "@/lib/chat-types";
 import { DAILY_LIMIT_CODE } from "@/lib/plans";
 
 const FIRST_BYTE_TIMEOUT_MS = 55_000;
