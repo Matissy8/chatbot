@@ -455,38 +455,35 @@ create policy "Users can read their own achievements"
 revoke all on public.user_achievements from public, anon, authenticated;
 grant select on public.user_achievements to authenticated;
 
-create or replace function public.refresh_user_achievements()
+create or replace function public.refresh_user_achievements_for(p_user_id uuid)
 returns void
 language plpgsql
 security definer
 set search_path = ''
 as $$
 declare
-  current_user_id uuid := auth.uid();
   current_xp integer;
   current_streak integer;
   reviewed_cards bigint;
 begin
-  if current_user_id is null then raise exception 'not authorized'; end if;
-
   select coalesce(max(p.xp), 0), coalesce(max(p.streak), 0)
   into current_xp, current_streak
   from public.profiles p
-  where p.id = current_user_id;
+  where p.id = p_user_id;
 
   insert into public.user_achievements (user_id, achievement_id)
-  select current_user_id, a.achievement_id
+  select p_user_id, a.achievement_id
   from (values
     ('first-quiz', exists (
       select 1 from public.quick_quiz_attempts q
-      where q.user_id = current_user_id and q.completed_at is not null
+      where q.user_id = p_user_id and q.completed_at is not null
     )),
     ('streak-3', current_streak >= 3),
     ('streak-7', current_streak >= 7),
     ('xp-100', current_xp >= 100),
     ('perfect-quiz', exists (
       select 1 from public.quick_quiz_attempts q
-      where q.user_id = current_user_id
+      where q.user_id = p_user_id
         and q.completed_at is not null
         and q.score = 5
         and jsonb_array_length(q.question_set) = 5
@@ -498,15 +495,98 @@ begin
   select coalesce(sum(f.known_count + f.review_count), 0)
   into reviewed_cards
   from public.flashcard_progress f
-  where f.user_id = current_user_id;
+  where f.user_id = p_user_id;
 
   if reviewed_cards >= 20 then
     insert into public.user_achievements (user_id, achievement_id)
-    values (current_user_id, 'flashcard-20')
+    values (p_user_id, 'flashcard-20')
     on conflict (user_id, achievement_id) do nothing;
   end if;
 end;
 $$;
+
+create or replace function public.refresh_user_achievements()
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  current_user_id uuid := auth.uid();
+begin
+  if current_user_id is null then raise exception 'not authorized'; end if;
+  perform public.refresh_user_achievements_for(current_user_id);
+end;
+$$;
+
+create or replace function public.capture_profile_achievements()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  perform public.refresh_user_achievements_for(new.id);
+  return new;
+end;
+$$;
+
+create or replace function public.capture_quiz_achievements()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if new.completed_at is not null and new.completed_at is distinct from old.completed_at then
+    perform public.refresh_user_achievements_for(new.user_id);
+  end if;
+  return new;
+end;
+$$;
+
+create or replace function public.capture_flashcard_achievements()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  perform public.refresh_user_achievements_for(new.user_id);
+  return new;
+end;
+$$;
+
+revoke all on function public.refresh_user_achievements_for(uuid) from public, anon, authenticated;
+revoke all on function public.capture_profile_achievements() from public, anon, authenticated;
+revoke all on function public.capture_quiz_achievements() from public, anon, authenticated;
+revoke all on function public.capture_flashcard_achievements() from public, anon, authenticated;
+
+drop trigger if exists capture_profile_achievements on public.profiles;
+create trigger capture_profile_achievements
+  after update of xp, streak on public.profiles
+  for each row
+  when (old.xp is distinct from new.xp or old.streak is distinct from new.streak)
+  execute function public.capture_profile_achievements();
+
+drop trigger if exists capture_quiz_achievements on public.quick_quiz_attempts;
+create trigger capture_quiz_achievements
+  after update of completed_at on public.quick_quiz_attempts
+  for each row
+  when (new.completed_at is not null and old.completed_at is distinct from new.completed_at)
+  execute function public.capture_quiz_achievements();
+
+drop trigger if exists capture_flashcard_insert_achievements on public.flashcard_progress;
+create trigger capture_flashcard_insert_achievements
+  after insert on public.flashcard_progress
+  for each row
+  execute function public.capture_flashcard_achievements();
+
+drop trigger if exists capture_flashcard_update_achievements on public.flashcard_progress;
+create trigger capture_flashcard_update_achievements
+  after update of known_count, review_count on public.flashcard_progress
+  for each row
+  execute function public.capture_flashcard_achievements();
 
 revoke all on function public.start_quick_quiz() from public, anon;
 revoke all on function public.submit_quick_quiz_answer(uuid, text, integer) from public, anon;
