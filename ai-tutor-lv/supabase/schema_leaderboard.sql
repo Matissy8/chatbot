@@ -30,8 +30,11 @@ begin
     select
       profiles.id,
       profiles.display_name,
-      profiles.streak,
       profiles.created_at,
+      case when (profiles.last_active_at at time zone 'Europe/Riga')::date >= (now() at time zone 'Europe/Riga')::date - 1
+        then profiles.streak
+        else 0
+      end as streak,
       case
         when p_period = 'allTime' then profiles.xp
         else coalesce(sum(xp_transactions.amount), 0)::integer
@@ -40,12 +43,14 @@ begin
     left join public.xp_transactions as xp_transactions
       on xp_transactions.user_id = profiles.id
       and (
-        (p_period = 'week' and xp_transactions.created_at >= date_trunc('week', now()))
-        or (p_period = 'month' and xp_transactions.created_at >= date_trunc('month', now()))
+        (p_period = 'week' and xp_transactions.created_at >= date_trunc('week', now() at time zone 'Europe/Riga') at time zone 'Europe/Riga')
+        or (p_period = 'month' and xp_transactions.created_at >= date_trunc('month', now() at time zone 'Europe/Riga') at time zone 'Europe/Riga')
         or (
           p_period = 'semester'
-          and xp_transactions.created_at >= date_trunc('year', now())
-            + make_interval(months => case when extract(month from now()) <= 6 then 0 else 6 end)
+          and xp_transactions.created_at >= (
+            date_trunc('year', now() at time zone 'Europe/Riga')
+              + make_interval(months => case when extract(month from now() at time zone 'Europe/Riga') <= 6 then 0 else 6 end)
+          ) at time zone 'Europe/Riga'
         )
       )
     where profiles.onboarding_completed_at is not null

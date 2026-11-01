@@ -45,13 +45,14 @@ function getSubject(text: string, requestedSubject: unknown): string {
   return MUSIC_SUBJECTS.find((subject) => subject.id === subjectId)?.name ?? "Mūzikas teorija";
 }
 
-async function persistAssistantReply(supabase: ServerClient, chatId: string, userId: string, text: string, subject: string) {
+async function persistAssistantReply(supabase: ServerClient, chatId: string, userId: string, text: string, subject: string, awardChatXp: boolean) {
   const { error } = await supabase.from("messages").insert({ chat_id: chatId, role: "assistant", content: text });
   if (error) {
     console.error("Failed to persist assistant message:", error);
     return;
   }
 
+  if (!awardChatXp) return;
   try {
     await awardXP(userId, 15, "Uzdots jautājums AI asistentam", subject);
   } catch (error) {
@@ -221,6 +222,8 @@ async function handlePost(request: Request) {
     const cached = cacheKey ? cacheGet(cacheKey) : undefined;
     const signal = AbortSignal.any([request.signal, AbortSignal.timeout(AI_TIMEOUT_MS)]);
     let responseText = cached ?? "";
+    // Offline replies come from a canned template, not the AI model, so they must not use up the daily limit or earn XP.
+    let usedFallback = false;
 
     if (!responseText && hasConfiguredAIProvider()) {
       const result = await generateText({
@@ -231,13 +234,14 @@ async function handlePost(request: Request) {
       });
       responseText = result.text;
     } else if (!responseText) {
+      usedFallback = true;
       responseText = await generateTutorReply({ messages, language, allowProviders: false });
     }
 
     if (!responseText.trim()) throw new Error("Gemini returned an empty response.");
-    if (cacheKey && !cached) cacheSet(cacheKey, responseText, FIRST_TURN_CACHE_TTL_MS);
+    if (cacheKey && !cached && !usedFallback) cacheSet(cacheKey, responseText, FIRST_TURN_CACHE_TTL_MS);
 
-    if (reservationId) {
+    if (reservationId && !usedFallback) {
       const { data: confirmationData, error: confirmationError } = await admin.rpc("confirm_daily_usage", {
         p_reservation_id: reservationId,
       });
@@ -248,7 +252,7 @@ async function handlePost(request: Request) {
       reservationSettled = true;
     }
 
-    await persistAssistantReply(supabase, activeChatId, user.id, responseText, subject);
+    await persistAssistantReply(supabase, activeChatId, user.id, responseText, subject, !usedFallback);
     return new Response(responseText, { headers: { ...BASE_HEADERS, "x-chat-id": activeChatId } });
   } catch (error) {
     console.error("AI chat request failed:", error);

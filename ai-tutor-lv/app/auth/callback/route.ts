@@ -9,7 +9,8 @@ function safeNextPath(value: string | null) {
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = request.nextUrl;
-  const failure = NextResponse.redirect(`${origin}/login?error=oauth`);
+  // E-mail links (password reset) carry a next path; Google sign-in does not.
+  const failure = NextResponse.redirect(`${origin}/login?error=${searchParams.has("next") ? "link" : "oauth"}`);
 
   const code = searchParams.get("code");
   if (!code || !isSupabaseConfigured()) return failure;

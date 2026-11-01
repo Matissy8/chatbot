@@ -37,7 +37,7 @@ async function handlePost(request: Request) {
     awarded: Boolean(result?.awarded),
     score: Number(result?.score ?? 0),
     total: Number(result?.question_count ?? 0),
-    xpAwarded: result?.awarded ? 50 : 0,
+    xpAwarded: Number(result?.xp_awarded ?? 0),
     totalXp: Number(result?.total_xp ?? 0),
   });
 }

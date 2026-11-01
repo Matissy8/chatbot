@@ -82,15 +82,15 @@ export function PricingSection({ plan, used, usageError }: { plan: Plan; used?: 
             <CardHeader>
               <div className="flex items-center justify-between gap-2">
                 <CardTitle className="text-lg">Maestro PRO</CardTitle>
-                <Badge>{tr("Ietaupi 25%")}</Badge>
+                <Badge>{tr("Atlaide -17%")}</Badge>
               </div>
               <CardDescription>{tr("Nopietnai, ikdienas mācīšanās praksei")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
               <p className="flex flex-wrap items-baseline gap-x-2">
-                <span className="text-4xl font-semibold tracking-tight">15 €</span>
+                <span className="text-4xl font-semibold tracking-tight">$24.99</span>
                 <span className="sr-only">{tr("Iepriekšējā cena:")}</span>
-                <del className="text-lg text-muted-foreground">20 €</del>
+                <del className="text-lg text-muted-foreground">$30.00</del>
                 <span className="text-muted-foreground">/ {tr("mēnesī")}</span>
               </p>
               <ul className="space-y-3 text-sm">

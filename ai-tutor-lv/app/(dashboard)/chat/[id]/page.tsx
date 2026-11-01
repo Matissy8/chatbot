@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { ChatInterface } from "@/components/chat/ChatInterface";
 import { createClient } from "@/lib/supabase/server";
+import { MUSIC_SUBJECTS } from "@/lib/music-subjects";
 import type { ChatMessage } from "@/lib/chat-types";
 
 export default async function DynamicChatPage({ params }: PageProps<"/chat/[id]">) {
@@ -11,7 +12,7 @@ export default async function DynamicChatPage({ params }: PageProps<"/chat/[id]"
 
   const { data: chat, error: chatError } = await supabase
     .from("chats")
-    .select("id")
+    .select("id, subject")
     .eq("id", id)
     .maybeSingle();
   if (chatError) throw new Error("Neizdevās ielādēt sarunu.");
@@ -31,5 +32,7 @@ export default async function DynamicChatPage({ params }: PageProps<"/chat/[id]"
       content: message.content,
     }));
 
-  return <ChatInterface key={id} chatId={id} initialMessages={initialMessages} />;
+  const initialSubject = MUSIC_SUBJECTS.find((subject) => subject.name === chat.subject)?.id;
+
+  return <ChatInterface key={id} chatId={id} initialMessages={initialMessages} initialSubject={initialSubject} />;
 }

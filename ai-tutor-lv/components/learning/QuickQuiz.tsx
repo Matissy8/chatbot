@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ArrowRight, Check, CheckCircle2, LoaderCircle, RotateCcw, Sparkles, Trophy, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,6 +27,15 @@ const optionStyles = [
   "bg-emerald-600 text-white hover:bg-emerald-700",
 ];
 
+function shuffledOrder(length: number) {
+  const order = Array.from({ length }, (_, index) => index);
+  for (let i = order.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [order[i], order[j]] = [order[j], order[i]];
+  }
+  return order;
+}
+
 export function QuickQuiz() {
   const { refreshSession, session, language } = useAppSession();
   const tr = (text: string) => translate(language, text);
@@ -39,6 +48,8 @@ export function QuickQuiz() {
   const [error, setError] = useState("");
   const question = questions?.[currentIndex];
   const answer = question ? answers[question.id] : undefined;
+  // Display order only; answers are always submitted and compared by the original option index.
+  const optionOrder = useMemo(() => shuffledOrder(question?.options.length ?? 0), [question]);
 
   async function startQuiz() {
     setBusy(true);
@@ -51,7 +62,7 @@ export function QuickQuiz() {
         setAttemptId("guest-preview");
         setQuestions(guestQuickQuiz.map((item) => ({ id: item.id, question: item.question, options: item.options })));
       } else {
-        const result = await fetchJson<{ attemptId: string; questions: QuizQuestion[] }>("/api/quick-quiz", {
+        const result = await fetchJson<{ attemptId: string; questions: QuizQuestion[]; answers?: Record<string, AnswerResult> }>("/api/quick-quiz", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action: "start" }),
@@ -59,8 +70,13 @@ export function QuickQuiz() {
         if (!result || typeof result.attemptId !== "string" || !Array.isArray(result.questions) || result.questions.length === 0) {
           throw new Error("Neizdevās saņemt jautājumus.");
         }
+        // Resuming an unfinished attempt continues at the first unanswered question.
+        const answered = result.answers ?? {};
+        const firstOpen = result.questions.findIndex((item) => !answered[item.id]);
         setAttemptId(result.attemptId);
         setQuestions(result.questions);
+        setAnswers(answered);
+        setCurrentIndex(firstOpen === -1 ? result.questions.length - 1 : firstOpen);
       }
     } catch (cause) {
       setError(tr(cause instanceof Error ? cause.message : "Neizdevās sākt viktorīnu."));
@@ -76,7 +92,7 @@ export function QuickQuiz() {
     try {
       let result: AnswerResult;
       if (session?.isGuest) {
-        const demoQuestion = guestQuickQuiz[0];
+        const demoQuestion = guestQuickQuiz.find((item) => item.id === question.id) ?? guestQuickQuiz[0];
         result = {
           correct: selectedOption === demoQuestion.correctAnswer,
           explanation: demoQuestion.explanation,
@@ -176,22 +192,23 @@ export function QuickQuiz() {
         <Card className="border-border shadow-sm">
           <CardHeader>
             <CardDescription className="flex items-center justify-between gap-2">
-              <span>{tr("Solfedžo · Zibens-viktorīna")}</span>
+              <span>{tr("Mūzika · Zibens-viktorīna")}</span>
               <span>{tr("Jautājums")} {currentIndex + 1} / {questions.length}</span>
             </CardDescription>
             <CardTitle className="text-xl">{tr(question.question)}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-3 sm:grid-cols-2">
-              {question.options.map((option, index) => {
-                const selected = answer?.selected_option === index;
-                const correctChoice = Boolean(answer && answer.correct_option === index);
+              {optionOrder.map((originalIndex, index) => {
+                const option = question.options[originalIndex];
+                const selected = answer?.selected_option === originalIndex;
+                const correctChoice = Boolean(answer && answer.correct_option === originalIndex);
                 const incorrectChoice = answer && selected && !answer.correct;
                 return (
                   <button
-                    key={`${question.id}-${index}`}
+                    key={`${question.id}-${originalIndex}`}
                     type="button"
-                    onClick={() => void submitAnswer(index)}
+                    onClick={() => void submitAnswer(originalIndex)}
                     disabled={Boolean(answer) || busy}
                     aria-pressed={selected}
                     className={`flex min-h-16 items-center justify-between gap-3 rounded-xl p-4 text-left font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default disabled:opacity-90 ${optionStyles[index]} ${correctChoice ? "ring-4 ring-emerald-300" : ""} ${incorrectChoice ? "ring-4 ring-rose-300" : ""}`}

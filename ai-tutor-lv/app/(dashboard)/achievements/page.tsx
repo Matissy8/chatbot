@@ -13,6 +13,7 @@ import {
   type AchievementStatistics,
 } from "@/lib/achievements-config";
 import { translate } from "@/lib/i18n";
+import { formatDays } from "@/lib/format-utils";
 
 type StatisticsResult = { userId: string; data: AchievementStatistics };
 type StatisticsError = { userId: string; message: string };
@@ -96,7 +97,7 @@ export default function AchievementsPage() {
       {statistics && (
         <>
           <div className="flex flex-wrap items-center gap-4 rounded-xl border border-border bg-muted/50 px-4 py-3 text-sm font-semibold">
-            <span>🔥 {statistics.streak} {tr("dienas")}</span>
+            <span>🔥 {formatDays(statistics.streak, language)}</span>
             <span>⭐ {statistics.xp.toLocaleString(language === "ru" ? "ru-RU" : language === "en" ? "en-US" : "lv-LV")} XP</span>
           </div>
 

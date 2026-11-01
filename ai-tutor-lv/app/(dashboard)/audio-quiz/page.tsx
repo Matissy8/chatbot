@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { fetchJson } from "@/lib/fetch-json";
 import { useAppSession } from "@/components/providers/app-provider";
 import { translate } from "@/lib/i18n";
+import { TopicQuiz } from "@/components/learning/TopicQuiz";
 
 const MAX_FILE_SIZE = 8 * 1024 * 1024;
 const acceptedExtensions = new Set(["mp3", "wav", "ogg", "flac", "aac", "aiff", "aif"]);
@@ -24,6 +25,22 @@ const timerOptions: { seconds: number | null; label: string }[] = [
 type TimerState = "idle" | "running" | "expired";
 
 export default function AudioQuizPage() {
+  const { language } = useAppSession();
+  const tr = (text: string) => translate(language, text);
+  const [mode, setMode] = useState<"audio" | "topics">("audio");
+
+  return (
+    <div className="mx-auto w-full max-w-6xl space-y-4 p-4 sm:p-6">
+      <div className="flex gap-2" role="group" aria-label={tr("Viktorīnas režīms")}>
+        <Button type="button" size="sm" variant={mode === "audio" ? "default" : "outline"} aria-pressed={mode === "audio"} onClick={() => setMode("audio")}>{tr("Audio analīze")}</Button>
+        <Button type="button" size="sm" variant={mode === "topics" ? "default" : "outline"} aria-pressed={mode === "topics"} onClick={() => setMode("topics")}>{tr("Tēmu viktorīna")}</Button>
+      </div>
+      {mode === "audio" ? <AudioAnalysis /> : <TopicQuiz />}
+    </div>
+  );
+}
+
+function AudioAnalysis() {
   const { language } = useAppSession();
   const tr = (text: string) => translate(language, text);
   const [file, setFile] = useState<File | null>(null);
@@ -129,7 +146,7 @@ export default function AudioQuizPage() {
   const guessLocked = timerState === "expired";
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-6 p-4 sm:p-6">
+    <div className="space-y-6">
       <header>
         <p className="text-sm font-medium text-muted-foreground">{tr("Mūzikas literatūra un solfedžo")}</p>
         <h1 className="mt-1 text-3xl font-bold tracking-tight">{tr("Klausīšanās viktorīna")}</h1>

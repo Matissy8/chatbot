@@ -1,5 +1,6 @@
 import { apiErrorResponse } from "@/lib/api-error";
 import { createClient } from "@/lib/supabase/server";
+import { effectiveStreak } from "@/lib/streak";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,7 +26,7 @@ export async function GET() {
     const [profileResult, flashcardResult, quizResult, achievementsResult] = await Promise.all([
       supabase
         .from("profiles")
-        .select("xp, streak")
+        .select("xp, streak, last_active_at")
         .eq("id", user.id)
         .maybeSingle(),
       supabase
@@ -55,7 +56,7 @@ export async function GET() {
     const quizStats = Array.isArray(quizResult.data) ? quizResult.data[0] : quizResult.data;
     const statistics = {
       xp: Number(profileResult.data?.xp ?? 0),
-      streak: Number(profileResult.data?.streak ?? 0),
+      streak: effectiveStreak(Number(profileResult.data?.streak ?? 0), profileResult.data?.last_active_at),
       completedQuizzes: Number(quizStats?.completed_quizzes ?? 0),
       bestQuizScore: Number(quizStats?.best_score ?? 0),
       bestQuizQuestionCount: Number(quizStats?.best_question_count ?? 0),

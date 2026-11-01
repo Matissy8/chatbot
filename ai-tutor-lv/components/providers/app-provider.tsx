@@ -8,9 +8,28 @@ import { calculateLevel } from "@/lib/gamification";
 import type { AppSession } from "@/lib/session";
 import { GUEST_COOKIE_NAME } from "@/lib/guest-mode";
 import { parseLanguage, type Language } from "@/lib/i18n";
+import { effectiveStreak } from "@/lib/streak";
 
 const userTypes = ["school_student", "music_student", "music_high_school", "teacher", "independent"] as const;
 type UserType = (typeof userTypes)[number];
+
+// A language picked while signed out (on the login or register page) is applied to the profile at the next sign-in.
+const PENDING_LANGUAGE_KEY = "ai-tutor-pending-language";
+
+async function applyPendingLanguage(session: AppSession): Promise<AppSession> {
+  const pending = parseLanguage(window.sessionStorage.getItem(PENDING_LANGUAGE_KEY)?.toLowerCase());
+  window.sessionStorage.removeItem(PENDING_LANGUAGE_KEY);
+  if (!pending || pending === session.language) return session;
+
+  const { data, error } = await createSupabaseBrowserClient()
+    .from("profiles")
+    .update({ language: pending })
+    .eq("id", session.id)
+    .select("id")
+    .maybeSingle();
+  if (error || !data) console.error("Unable to save the language chosen before sign-in:", error);
+  return { ...session, language: pending };
+}
 
 function createGuestSession(): AppSession {
   return {
@@ -53,7 +72,7 @@ async function getAppSession(user: User): Promise<AppSession> {
     language,
     xp,
     level,
-    streak: Number(profile?.streak ?? 0),
+    streak: effectiveStreak(Number(profile?.streak ?? 0), profile?.last_active_at),
     lastActive: profile?.last_active_at ?? null,
     onboardingComplete: Boolean(profile?.onboarding_completed_at),
   };
@@ -63,6 +82,7 @@ type AppContextValue = {
   session: AppSession | null;
   language: Language;
   loading: boolean;
+  profileError: boolean;
   onboardingComplete: boolean;
   changeLanguage: (language: Language) => Promise<void>;
   refreshSession: () => Promise<void>;
@@ -75,6 +95,8 @@ export function AppProvider({ children, initialGuestMode = false }: { children: 
   const [session, setSession] = useState<AppSession | null>(() => initialGuestMode ? createGuestSession() : null);
   const [language, setLanguage] = useState<Language>("lv");
   const [loading, setLoading] = useState(() => !initialGuestMode && isSupabaseConfigured());
+  // True when the user is signed in but the profile could not be loaded; distinct from being signed out.
+  const [profileError, setProfileError] = useState(false);
 
   useEffect(() => {
     if (session && !session.isGuest) return;
@@ -93,6 +115,7 @@ export function AppProvider({ children, initialGuestMode = false }: { children: 
   const changeLanguage = useCallback(async (language: Language) => {
     const previousLanguage = session?.language ?? "lv";
     window.localStorage.setItem("ai-tutor-language", language.toUpperCase());
+    if (!session) window.sessionStorage.setItem(PENDING_LANGUAGE_KEY, language);
     setLanguage(language);
     setSession((current) => current ? { ...current, language } : current);
 
@@ -128,10 +151,12 @@ export function AppProvider({ children, initialGuestMode = false }: { children: 
       const { data: { user } } = await supabase.auth.getUser();
       const nextSession = user ? await getAppSession(user) : null;
       setSession(nextSession);
+      setProfileError(false);
       if (nextSession) setLanguage(nextSession.language);
     } catch (error) {
       console.error("Unable to load the Supabase session:", error);
-      setSession(null);
+      // A failed refresh must not sign the user out of an already loaded session.
+      setProfileError(true);
     } finally {
       setLoading(false);
     }
@@ -149,20 +174,25 @@ export function AppProvider({ children, initialGuestMode = false }: { children: 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, authSession) => {
       if (!authSession?.user) {
         setSession(null);
+        setProfileError(false);
         setLoading(false);
         return;
       }
 
       setLoading(true);
       window.setTimeout(() => {
-        void getAppSession(authSession.user).then((nextSession) => {
+        void getAppSession(authSession.user).then(applyPendingLanguage).then((nextSession) => {
           if (active) {
             setSession(nextSession);
+            setProfileError(false);
             setLanguage(nextSession.language);
           }
         }).catch((error: unknown) => {
           console.error("Unable to load the user profile:", error);
-          if (active) setSession(null);
+          if (active) {
+            setSession(null);
+            setProfileError(true);
+          }
         }).finally(() => {
           if (active) setLoading(false);
         });
@@ -193,11 +223,12 @@ export function AppProvider({ children, initialGuestMode = false }: { children: 
     session,
     language,
     loading,
+    profileError,
     onboardingComplete: Boolean(session?.onboardingComplete),
     changeLanguage,
     refreshSession,
     logout,
-  }), [session, language, loading, changeLanguage, refreshSession, logout]);
+  }), [session, language, loading, profileError, changeLanguage, refreshSession, logout]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }

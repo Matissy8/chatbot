@@ -9,6 +9,8 @@ import { fetchJson } from "@/lib/fetch-json";
 import { flashcards, type FlashcardId } from "@/lib/music-learning-data";
 import { translate } from "@/lib/i18n";
 
+const FLIP_DURATION_MS = 500;
+
 type CardProgress = { known_count: number; review_count: number };
 type ProgressResult = { progress: { card_id: string; known_count: number; review_count: number }[] };
 
@@ -43,6 +45,20 @@ export default function FlashcardsPage() {
     return () => { active = false; };
   }, [session?.isGuest, language]);
 
+  function moveTo(next: number) {
+    if (saving) return;
+    if (!flipped) {
+      setIndex(next);
+      return;
+    }
+    setSaving(true);
+    setFlipped(false);
+    window.setTimeout(() => {
+      setIndex(next);
+      setSaving(false);
+    }, FLIP_DURATION_MS);
+  }
+
   async function rateCard(knew: boolean) {
     if (saving || isComplete) return;
     setSaving(true);
@@ -65,7 +81,9 @@ export default function FlashcardsPage() {
         setProgress((current) => ({ ...current, [card.id]: result }));
         void refreshSession().catch((cause: unknown) => console.error("Unable to refresh flashcard activity:", cause));
       }
+      // Let the card turn back to its front before the next card's back face can show through.
       setFlipped(false);
+      await new Promise((resolve) => window.setTimeout(resolve, FLIP_DURATION_MS));
       setIndex((current) => current + 1);
     } catch (cause) {
       setError(tr(cause instanceof Error ? cause.message : "Neizdevās saglabāt kartītes progresu."));
@@ -149,10 +167,10 @@ export default function FlashcardsPage() {
             <span>{tr("Atkārtojumu kopā")}: {completedReviews}</span>
           </div>
           <div className="flex justify-between">
-            <Button variant="ghost" size="sm" disabled={saving || index === 0} onClick={() => { setIndex((value) => Math.max(0, value - 1)); setFlipped(false); }}>
+            <Button variant="ghost" size="sm" disabled={saving || index === 0} onClick={() => moveTo(Math.max(0, index - 1))}>
               <ArrowLeft className="mr-1 h-4 w-4" /> {tr("Iepriekšējā")}
             </Button>
-            <Button variant="ghost" size="sm" disabled={saving || index === flashcards.length - 1} onClick={() => { setIndex((value) => Math.min(flashcards.length - 1, value + 1)); setFlipped(false); }}>
+            <Button variant="ghost" size="sm" disabled={saving || index === flashcards.length - 1} onClick={() => moveTo(Math.min(flashcards.length - 1, index + 1))}>
               {tr("Nākamā")} <ArrowRight className="ml-1 h-4 w-4" />
             </Button>
           </div>

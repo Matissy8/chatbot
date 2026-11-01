@@ -76,9 +76,9 @@ insert into public.quick_quiz_questions (id, question, options, correct_answer, 
   ('allegro', 'Ko mūzikā nozīmē apzīmējums Allegro?', '["Lēni un mierīgi", "Ātri un dzīvīgi", "Klusā skaļumā", "Pakāpeniski skaļāk"]', 1, 'Allegro norāda uz ātru un dzīvīgu tempu.'),
   ('forte', 'Ko nozīmē dinamiskais apzīmējums forte (f)?', '["Kluss", "Vidēji skaļš", "Skaļi", "Ļoti lēni"]', 2, 'Forte nozīmē skaļi.'),
   ('crescendo', 'Ko nozīmē crescendo?', '["Pakāpeniski skaļāk", "Pakāpeniski klusāk", "Atskaņot īsi", "Atskaņot saistīti"]', 0, 'Crescendo nozīmē pakāpenisku skaļuma palielināšanu.'),
-  ('time-signature', 'Ko 4/4 taktsmērā norāda augšējais skaitlis?', '["Taktī ir četras ceturtdaļdaļas", "Taktī ir četras taktis", "Viena ceturtdaļnote ilgst četras sekundes", "Jāspēlē četras reizes ātrāk"]', 0, 'Augšējais skaitlis norāda skaitāmo vienību skaitu taktī; 4/4 taktsmērā tās ir četras.'),
+  ('time-signature', 'Ko 4/4 taktsmērā norāda augšējais skaitlis?', '["Taktī ir četras ceturtdaļnotis", "Taktī ir četras taktis", "Viena ceturtdaļnote ilgst četras sekundes", "Jāspēlē četras reizes ātrāk"]', 0, 'Augšējais skaitlis norāda skaitāmo vienību skaitu taktī; 4/4 taktsmērā tās ir četras.'),
   ('staccato', 'Kā jāatskaņo notis ar apzīmējumu staccato?', '["Īsi un atdalīti", "Ļoti skaļi", "Pakāpeniski lēnāk", "Saistīti un plūstoši"]', 0, 'Staccato nozīmē atskaņot skaņas īsi un atdalīti.'),
-  ('d7-notes', 'Kuri toņi veido C mažora dominantes septakordu G7?', '["G–B–D–F", "C–E–G–B", "F–A–C–E", "D–F–A–C"]', 0, 'G7 sastāv no G, B, D un F — C mažora V pakāpes septakorda.'),
+  ('d7-notes', 'Kuri toņi veido C mažora dominantes septakordu G7?', '["G–H–D–F", "C–E–G–H", "F–A–C–E", "D–F–A–C"]', 0, 'G7 sastāv no G, H, D un F — C mažora V pakāpes septakorda.'),
   ('andante', 'Ko nozīmē tempa apzīmējums Andante?', '["Ļoti ātri", "Rāmi, soļojošā tempā", "Pakāpeniski klusāk", "Ar asu uzsvaru"]', 1, 'Andante apzīmē mierīgu, soļojošu tempu.'),
   ('major-triad', 'Kuri intervāli no pamatskaņas veido mažora trijskani?', '["Liela terca un tīra kvinta", "Maza terca un tīra kvinta", "Divas tīras kvartas", "Tritons un maza terca"]', 0, 'Mažora trijskanī no pamatskaņas ir lielā terca un tīrā kvinta.'),
   ('legato', 'Ko nozīmē legato?', '["Skaņas spēlēt īsi un atdalīti", "Skaņas savienot plūstoši", "Spēlēt arvien skaļāk", "Atkārtot vienu skaņu"]', 1, 'Legato nozīmē savienot skaņas plūstoši, bez pārtraukumiem.')
@@ -119,6 +119,7 @@ declare
   current_user_id uuid := auth.uid();
   new_attempt public.quick_quiz_attempts%rowtype;
   public_questions jsonb;
+  answered_questions jsonb;
 begin
   if current_user_id is null then raise exception 'not authorized'; end if;
 
@@ -162,7 +163,19 @@ begin
   into public_questions
   from jsonb_array_elements(new_attempt.question_set) as items(q);
 
-  return jsonb_build_object('attemptId', new_attempt.id, 'questions', public_questions);
+  -- A resumed attempt returns the results of questions that were already answered.
+  select coalesce(jsonb_object_agg(q->>'id', jsonb_build_object(
+    'correct', (new_attempt.answers->>(q->>'id'))::integer = (q->>'correctAnswer')::integer,
+    'explanation', q->>'explanation',
+    'selected_option', (new_attempt.answers->>(q->>'id'))::integer,
+    'correct_option', (q->>'correctAnswer')::integer,
+    'xp_awarded', 0
+  )), '{}'::jsonb)
+  into answered_questions
+  from jsonb_array_elements(new_attempt.question_set) as items(q)
+  where new_attempt.answers ? (q->>'id');
+
+  return jsonb_build_object('attemptId', new_attempt.id, 'questions', public_questions, 'answers', answered_questions);
 end;
 $$;
 
@@ -228,7 +241,7 @@ begin
   if not was_answered then
     if is_correct then
       insert into public.xp_transactions (user_id, amount, reason, subject)
-      values (current_user_id, 20, 'Pareiza zibens-viktorīnas atbilde', 'Solfedžo');
+      values (current_user_id, 20, 'Pareiza zibens-viktorīnas atbilde', 'Zibens-viktorīna');
       update public.profiles
       set xp = xp + 20
       where id = current_user_id;
@@ -279,7 +292,7 @@ begin
   total_questions := jsonb_array_length(attempt_row.question_set);
   if attempt_row.completed_at is null then
     if attempt_row.expires_at < now() then raise exception 'attempt expired'; end if;
-    if jsonb_object_length(attempt_row.answers) <> total_questions then
+    if (select count(*) from jsonb_object_keys(attempt_row.answers)) <> total_questions then
       raise exception 'all questions must be answered';
     end if;
 

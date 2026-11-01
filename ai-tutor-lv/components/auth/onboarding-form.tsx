@@ -16,7 +16,7 @@ import { translate, type Language } from "@/lib/i18n";
 const userTypes = ["school_student", "music_student", "music_high_school", "teacher", "independent"] as const;
 type UserType = (typeof userTypes)[number];
 
-const roleOptions: { value: UserType; label: string }[] = [
+export const roleOptions: { value: UserType; label: string }[] = [
   { value: "school_student", label: "Skolēns vispārizglītojošā skolā" },
   { value: "music_student", label: "Mūzikas skolas audzēknis" },
   { value: "music_high_school", label: "Mūzikas vidusskolas students" },
@@ -34,8 +34,14 @@ export function OnboardingForm() {
   const language = selectedLanguage ?? session?.language ?? "lv";
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const needsGrade = role === "school_student" || role === "music_student";
+  const needsGrade = role === "school_student" || role === "music_student" || role === "music_high_school";
+  const gradeValues = role === "music_high_school"
+    ? ["9", "10", "11", "12"]
+    : Array.from({ length: 12 }, (_, index) => String(index + 1));
   const tr = (text: string) => translate(interfaceLanguage, text);
+  const roleItems = Object.fromEntries(roleOptions.map(({ value, label }) => [value, tr(label)]));
+  const gradeItems = Object.fromEntries(gradeValues.map((value) => [value, gradeLabel(value, tr("klase"), interfaceLanguage === "lv" || role === "music_high_school", tr("kurss"))]));
+  const languageItems = { lv: tr("Latviešu"), en: tr("English"), ru: tr("Русский") };
 
   async function handleComplete() {
     setError("");
@@ -118,10 +124,11 @@ export function OnboardingForm() {
 
         <div className="space-y-2">
           <Label htmlFor="role">{tr("Kā tu izmantosi platformu?")}</Label>
-          <Select value={role} onValueChange={(value) => {
+          <Select items={roleItems} value={role} onValueChange={(value) => {
             if (typeof value === "string" && userTypes.includes(value as UserType)) {
               setRole(value as UserType);
-              if (value !== "school_student" && value !== "music_student") setGrade("");
+              // Grade lists differ between roles, so a previous choice may no longer be valid.
+              setGrade("");
             }
           }}>
             <SelectTrigger id="role" className="w-full bg-background">
@@ -138,13 +145,13 @@ export function OnboardingForm() {
         {needsGrade && (
           <div className="space-y-2">
             <Label htmlFor="grade">{tr("Kurā klasē tu mācies?")}</Label>
-            <Select value={grade} onValueChange={(value) => setGrade(typeof value === "string" ? value : "")}>
+            <Select items={gradeItems} value={grade} onValueChange={(value) => setGrade(typeof value === "string" ? value : "")}>
               <SelectTrigger id="grade" className="w-full bg-background">
                 <SelectValue placeholder={tr("Izvēlies klasi")} />
               </SelectTrigger>
               <SelectContent>
-                {Array.from({ length: 12 }, (_, index) => String(index + 1)).map((value) => (
-                  <SelectItem key={value} value={value}>{gradeLabel(value, tr("klase"), interfaceLanguage === "lv")}</SelectItem>
+                {gradeValues.map((value) => (
+                  <SelectItem key={value} value={value}>{gradeItems[value]}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -153,7 +160,7 @@ export function OnboardingForm() {
 
         <div className="space-y-2">
           <Label htmlFor="language">{tr("Atbilžu valoda")}</Label>
-          <Select value={language} onValueChange={(value) => {
+          <Select items={languageItems} value={language} onValueChange={(value) => {
             if (value === "lv" || value === "en" || value === "ru") setSelectedLanguage(value);
           }}>
             <SelectTrigger id="language" className="w-full bg-background">

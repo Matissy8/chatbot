@@ -80,7 +80,7 @@ export function FloatingAssistant() {
   }
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 sm:bottom-5 sm:right-5">
+    <div className="fixed bottom-4 right-4 z-50 sm:bottom-5 sm:right-5 print:hidden">
       <LimitReachedModal open={limit !== null} onOpenChange={(open) => !open && setLimit(null)} limit={limit || undefined} />
       {!isOpen ? (
         <Button

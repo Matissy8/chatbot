@@ -11,6 +11,15 @@ export const flashcards = [
   { id: "legato", term: "Legato", category: "Izpildījuma veids", definition: "Plūstoši, savienojot skaņas.", example: "Legato frāzē notis pāriet cita citā bez pārtraukuma." },
   { id: "perfect-fifth", term: "Tīrā kvinta", category: "Intervāli", definition: "Intervāls, kas aptver piecas skaņkārtas pakāpes.", example: "Do–Sol veido tīro kvintu." },
   { id: "dominant-seventh", term: "Dominantes septakords (D7)", category: "Akordi", definition: "Četru skaņu akords, kas veidots uz skaņkārtas V pakāpes.", example: "C mažorā G7 sastāv no Sol–Si–Re–Fa." },
+  { id: "note-h-b", term: "Kā atšķiras skaņas H un B?", category: "Nošu sistēma", definition: "H ir pamatskaņa Si, bet B ir par pustoni pazemināts Si (Si-bemols).", example: "Latvijas mūzikas skolās: H = Si, B = Si♭." },
+  { id: "enharmonism", term: "Kas ir enharmoniski vienādas skaņas?", category: "Teorija", definition: "Skaņas, kas skan vienā augstumā, bet tiek nosauktas un pierakstītas atšķirīgi.", example: "Fis un Ges." },
+  { id: "tritone", term: "Kuri intervāli veido tritonu (3 toņi)?", category: "Intervāli", definition: "Palielināta kvarta (pal. 4) un pamazināta kvinta (pam. 5).", example: "F–H ir pal. 4, H–F ir pam. 5." },
+  { id: "thirds", term: "Cik toņu ir lielajā un mazajā tercā?", category: "Intervāli", definition: "Lielā tercā (l. 3) ir 2 toņi, mazā tercā (m. 3) ir 1,5 toņi.", example: "Do–Mi ir l. 3, Re–Fa ir m. 3." },
+  { id: "d7-inversions", term: "D7 uzbūve un apvērsumi", category: "Akordi", definition: "D7 būvē uz V pakāpes. Apvērsumi: D65 (kvintsekstakords), D43 (terckvartakords), D2 (sekundakords).", example: "C mažorā: G–H–D–F." },
+  { id: "vii7-dim", term: "Pamazinātais ievadseptakords", category: "Akordi", definition: "Septakords uz paaugstinātās VII pakāpes harmoniskajā minorā (VII7 pam.).", example: "a minorā: Gis–H–D–F." },
+  { id: "tempo-rubato", term: "Tempo rubato", category: "Itāļu mūzikas termini", definition: "Brīvs, elastīgs temps (burtiski — nozagts laiks), izteiksmīgi paātrinot vai palēninot kustību.", example: "Bieži sastopams romantiķu klavierēs." },
+  { id: "smorzando", term: "Smorzando / Morendo", category: "Itāļu mūzikas termini", definition: "Pamazām izdziestot, pieklustot un palēninot līdz pilnīgam klusumam.", example: "Skaņdarba noslēgumā." },
+  { id: "darzins-valsis", term: "Kurš komponists sacerējis Melanholisko valsi?", category: "Mūzikas literatūra", definition: "Emīls Dārziņš (1904).", example: "Latviešu profesionālās mūzikas klasika." },
 ] as const;
 
 export type FlashcardId = (typeof flashcards)[number]["id"];

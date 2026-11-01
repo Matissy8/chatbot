@@ -128,12 +128,12 @@ export function normalizeMusicSubject(input: string | null | undefined): MusicSu
   const raw = input.toLocaleLowerCase("lv").trim();
   if (!raw) return null;
 
-  if (raw.includes("fizik") || raw.includes("akustik") || raw.includes("matemāt") || raw.includes("matemat") || raw.includes("teorij")) {
+  if (raw.includes("fizik") || raw.includes("akustik") || raw.includes("matemāt") || raw.includes("matemat") || raw.includes("teorij") || raw.includes("physic") || raw.includes("math")) {
     return "muzikas_teorija";
   }
-  if (raw.includes("solfed")) return "solfedzo";
+  if (raw.includes("solfed") || raw.includes("solfeg")) return "solfedzo";
   if (raw.includes("literat") || raw.includes("vēstur") || raw.includes("vestur")) return "muzikas_literatura";
-  if (raw.includes("harmonij")) return "harmonija";
+  if (raw.includes("harmonij") || raw.includes("harmony")) return "harmonija";
   if (raw.includes("polifon")) return "polifonija";
   if (raw.includes("form")) return "muzikas_formas";
   if (raw.includes("diriģ") || raw.includes("dirig")) return "dirigesana";

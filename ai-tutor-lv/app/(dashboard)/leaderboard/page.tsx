@@ -7,8 +7,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Flame, Medal, Trophy } from "lucide-react";
 import { useAppSession } from "@/components/providers/app-provider";
-import { fetchJson } from "@/lib/fetch-json";
+import { fetchJson, RequestError } from "@/lib/fetch-json";
 import { translate } from "@/lib/i18n";
+import { formatDays } from "@/lib/format-utils";
 
 type RankingPeriod = "week" | "month" | "semester" | "allTime";
 
@@ -46,15 +47,20 @@ export default function LeaderboardPage() {
   const [leaders, setLeaders] = useState<Leader[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const { language } = useAppSession();
+  const { language, session } = useAppSession();
+  const isGuest = Boolean(session?.isGuest);
+  // Only student roles are ranked by get_leaderboard.
+  const isNotRanked = Boolean(session && !isGuest && session.userType !== "school_student" && session.userType !== "music_student" && session.userType !== "music_high_school");
   const tr = (text: string) => translate(language, text);
   const locale = language === "ru" ? "ru-RU" : language === "en" ? "en-US" : "lv-LV";
 
   useEffect(() => {
+    if (isGuest) return;
     let active = true;
     let timeout: number | undefined;
 
     async function refresh() {
+      let retry = true;
       try {
         const result = await fetchJson<{ leaders: Leader[] }>(`/api/leaderboard?period=${selectedPeriod}`, { timeoutMs: 15_000 });
         if (active) {
@@ -62,11 +68,13 @@ export default function LeaderboardPage() {
           setError("");
         }
       } catch (cause) {
+        // Only connectivity problems are worth retrying automatically; session and server errors need a user action.
+        retry = cause instanceof RequestError && (cause.kind === "timeout" || cause.kind === "network");
         if (active) setError(translate(language, cause instanceof Error ? cause.message : "Neizdevās ielādēt līderu sarakstu."));
       } finally {
         if (active) {
           setLoading(false);
-          timeout = window.setTimeout(() => void refresh(), 60_000);
+          if (retry) timeout = window.setTimeout(() => void refresh(), 60_000);
         }
       }
     }
@@ -76,7 +84,7 @@ export default function LeaderboardPage() {
       active = false;
       if (timeout !== undefined) window.clearTimeout(timeout);
     };
-  }, [language, selectedPeriod]);
+  }, [isGuest, language, selectedPeriod]);
 
   const topThree = leaders.filter((leader) => leader.rank <= 3);
   const podiumOrder = [topThree.find((leader) => leader.rank === 2), topThree.find((leader) => leader.rank === 1), topThree.find((leader) => leader.rank === 3)];
@@ -90,6 +98,7 @@ export default function LeaderboardPage() {
           <p className="text-sm font-medium text-muted-foreground">{tr("Kopiena")}</p>
           <h1 className="mt-1 text-3xl font-bold tracking-tight text-foreground">{tr("Līderu saraksts")}</h1>
           <p className="mt-1 text-muted-foreground">{tr("Sacenties ar citiem un audzē savu līmeni.")}</p>
+          {isNotRanked && <p className="mt-1 text-sm text-muted-foreground">{tr("Līderu sarakstā tiek rādīti tikai skolēni un audzēkņi.")}</p>}
         </div>
         <Card className="border-border bg-card shadow-sm">
           <CardContent className="flex items-center gap-3 p-3">
@@ -104,7 +113,7 @@ export default function LeaderboardPage() {
         </Card>
       </header>
 
-      <Tabs value={selectedPeriod} onValueChange={(value) => { setLoading(true); setSelectedPeriod(value as RankingPeriod); }} className="w-full">
+      <Tabs value={selectedPeriod} onValueChange={(value) => { setLoading(true); setError(""); setSelectedPeriod(value as RankingPeriod); }} className="w-full">
         <TabsList className="mb-6 flex h-auto w-full flex-wrap justify-start gap-1 bg-muted p-1 sm:w-fit">
           {periods.map((period) => (
             <TabsTrigger key={period.value} value={period.value} className="px-3 py-2">
@@ -114,7 +123,9 @@ export default function LeaderboardPage() {
         </TabsList>
         {periods.map((period) => (
           <TabsContent key={period.value} value={period.value}>
-            {error ? (
+            {isGuest ? (
+              <p className="rounded-lg border border-border p-6 text-center text-sm text-muted-foreground">{tr("Līderu sarakstam nepieciešams autentificēts konts.")}</p>
+            ) : error ? (
               <p className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive" role="alert">{tr(error)}</p>
             ) : loading ? (
               <p className="p-6 text-center text-sm text-muted-foreground">{tr("Ielādē līderu sarakstu…")}</p>
@@ -153,7 +164,7 @@ export default function LeaderboardPage() {
                           <div className="min-w-0">
                             <p className="truncate font-semibold text-foreground">{leader.displayName}</p>
                             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                              <span className="inline-flex items-center"><Flame className="mr-1 h-3 w-3" />{leader.streak} {tr("dienas")}</span>
+                              <span className="inline-flex items-center"><Flame className="mr-1 h-3 w-3" />{formatDays(leader.streak, language)}</span>
                             </div>
                           </div>
                         </div>

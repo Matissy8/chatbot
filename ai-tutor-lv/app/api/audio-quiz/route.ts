@@ -1,6 +1,8 @@
 import { generateText } from "ai";
 import { aiRequestOptions, LATVIAN_STYLE_RULES, getConfiguredModel, hasConfiguredAIProvider } from "@/lib/ai-provider";
 import { apiErrorResponse } from "@/lib/api-error";
+import { GUEST_COOKIE_NAME, isGuestModeEnabled } from "@/lib/guest-mode";
+import { cookies } from "next/headers";
 import { DAILY_LIMIT_CODE, FREE_DAILY_QUESTION_LIMIT } from "@/lib/plans";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -28,6 +30,11 @@ function readText(formData: FormData, key: string) {
 }
 
 async function handlePost(request: Request) {
+  const cookieStore = await cookies();
+  if (isGuestModeEnabled() && cookieStore.get(GUEST_COOKIE_NAME)?.value === "1") {
+    return Response.json({ error: "Viesu priekšskatījumā audio var noklausīties, bet AI analīzei nepieciešams autentificēts konts." }, { status: 403 });
+  }
+
   const supabase = await createClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) return Response.json({ error: "Sesija ir beigusies. Pieslēdzies vēlreiz." }, { status: 401 });

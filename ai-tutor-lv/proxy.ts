@@ -15,6 +15,10 @@ const guestAllowedRoutes = [
   "/achievements",
   "/teacher-tools",
   "/assistant-screen",
+  "/audio-quiz",
+  "/quiz",
+  "/flashcards",
+  "/learning-path",
 ];
 
 const protectedRoutes = [
@@ -25,9 +29,14 @@ const protectedRoutes = [
   "/api/teacher-tools",
   "/api/assistant-screen",
   "/api/audio-quiz",
+  "/api/quick-quiz",
+  "/api/learning",
   "/chat",
   "/chats",
   "/audio-quiz",
+  "/quiz",
+  "/flashcards",
+  "/learning-path",
   "/practice",
   "/progress",
   "/leaderboard",
@@ -38,6 +47,7 @@ const protectedRoutes = [
   "/teacher-tools",
   "/assistant-screen",
   "/onboarding",
+  "/reset-password",
 ];
 
 export async function proxy(request: NextRequest) {
@@ -51,7 +61,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next({ request });
   }
 
-  if (isGuest && ["/api/chat", "/api/teacher-tools", "/api/assistant-screen"].includes(pathname)) {
+  if (isGuest && ["/api/chat", "/api/teacher-tools", "/api/assistant-screen", "/api/audio-quiz"].includes(pathname)) {
     return NextResponse.next({ request });
   }
 

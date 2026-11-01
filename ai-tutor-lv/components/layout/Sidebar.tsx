@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useCallback, useEffect, useState, type ComponentType } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useCallback, useEffect, useState, useSyncExternalStore, type ComponentType } from "react";
 import {
   BookOpen,
+  ChevronDown,
   Contrast,
   Crown,
   GraduationCap,
@@ -15,12 +16,15 @@ import {
   LogOut,
   Map,
   MessageSquare,
+  Menu,
   Moon,
   Music2,
+  Pin,
   Plus,
   Settings,
   Sun,
   Target,
+  Trash2,
   TrendingUp,
   Trophy,
   UserRound,
@@ -34,13 +38,23 @@ import { Progress } from "@/components/ui/progress";
 import { calculateLevel } from "@/lib/gamification";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { translate, type Language } from "@/lib/i18n";
+import { applyTheme, getServerTheme, getStoredTheme, setStoredTheme, subscribeTheme, type ThemeMode } from "@/lib/theme";
 
-type ThemeMode = "light" | "dark" | "contrast";
-type NavEntry = { href: string; label: string; icon: ComponentType<LucideProps> };
+type NavLinkEntry = { href: string; label: string; icon: ComponentType<LucideProps> };
+type NavEntry = NavLinkEntry | {
+  label: string;
+  icon: ComponentType<LucideProps>;
+  subItems: NavLinkEntry[];
+};
 
-const navGroups: { label: string; items: NavEntry[] }[] = [
+type ViewMode = "student" | "teacher";
+const VIEW_MODE_KEY = "maestro-view-mode";
+const COLLAPSED_KEY = "maestro-sidebar-collapsed";
+
+const navGroups: { label: string; audience?: ViewMode; items: NavEntry[] }[] = [
   {
     label: "Mācības",
+    audience: "student",
     items: [
       { href: "/chat", label: "Saruna", icon: MessageSquare },
       { href: "/practice", label: "Uzdevumu ģenerators", icon: Target },
@@ -48,26 +62,40 @@ const navGroups: { label: string; items: NavEntry[] }[] = [
   },
   {
     label: "Mūzikas treniņi",
+    audience: "student",
     items: [
       { href: "/quiz", label: "Zibens-viktorīna", icon: Zap },
       { href: "/audio-quiz", label: "Klausīšanās viktorīna", icon: Headphones },
       { href: "/flashcards", label: "Mūzikas kartītes", icon: Layers },
-      { href: "/learning-path", label: "Mācību ceļvedis", icon: Map },
     ],
   },
   {
-    label: "Progress",
+    label: "Progresa ceļš",
+    audience: "student",
     items: [
-      { href: "/progress", label: "Mans progress", icon: TrendingUp },
-      { href: "/leaderboard", label: "Līderu saraksts", icon: Trophy },
-      { href: "/achievements", label: "Sasniegumi", icon: BookOpen },
+      {
+        label: "Progresa ceļš",
+        icon: TrendingUp,
+        subItems: [
+          { href: "/learning-path", label: "Tavs mācību ceļš", icon: Map },
+          { href: "/progress", label: "Priekšmetu analīze", icon: TrendingUp },
+          { href: "/achievements", label: "Sasniegumi", icon: BookOpen },
+          { href: "/leaderboard", label: "Līderu saraksts", icon: Trophy },
+        ],
+      },
+    ],
+  },
+  {
+    label: "Skolotājam",
+    audience: "teacher",
+    items: [
+      { href: "/teacher-tools", label: "Skolotāja režīms", icon: GraduationCap },
+      { href: "/assistant-screen", label: "Metodisko materiālu bāze", icon: Laptop },
     ],
   },
   {
     label: "Rīki un konts",
     items: [
-      { href: "/teacher-tools", label: "Skolotāja režīms", icon: GraduationCap },
-      { href: "/assistant-screen", label: "Metodisko materiālu bāze", icon: Laptop },
       { href: "/profile", label: "Profils", icon: UserRound },
       { href: "/pricing", label: "Plāni", icon: Crown },
       { href: "/settings", label: "Iestatījumi", icon: Settings },
@@ -81,26 +109,39 @@ const themeLabels: Record<ThemeMode, string> = {
   contrast: "Kontrasts",
 };
 
-function applyTheme(theme: ThemeMode) {
-  const root = document.documentElement;
-  root.classList.remove("dark", "theme-high-contrast");
-  if (theme === "dark") root.classList.add("dark");
-  if (theme === "contrast") root.classList.add("theme-high-contrast");
+function isPathActive(pathname: string, href: string) {
+  return pathname === href || pathname.startsWith(`${href}/`);
 }
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { session, language, changeLanguage } = useAppSession();
   const isGuest = Boolean(session?.isGuest);
-  const [userChats, setUserChats] = useState<{ id: string; title: string }[]>([]);
+  const [userChats, setUserChats] = useState<{ id: string; title: string; is_pinned?: boolean }[]>([]);
+  const [collapsed, setCollapsed] = useState(false);
+  const [storedViewMode, setStoredViewMode] = useState<ViewMode | null>(null);
+  const viewMode: ViewMode = storedViewMode ?? (session?.userType === "teacher" ? "teacher" : "student");
+  const visibleGroups = navGroups.filter((group) => !group.audience || group.audience === viewMode);
   const [chatHistoryError, setChatHistoryError] = useState(false);
-  const [theme, setTheme] = useState<ThemeMode>("light");
+  const [deleteError, setDeleteError] = useState(false);
+  const theme = useSyncExternalStore(subscribeTheme, getStoredTheme, getServerTheme);
   const [languageError, setLanguageError] = useState("");
+  const progressEntry = navGroups.find((group) => group.label === "Progresa ceļš")?.items[0];
+  const isProgressActive = progressEntry && "subItems" in progressEntry
+    ? progressEntry.subItems.some((item) => isPathActive(pathname, item.href))
+    : false;
+  const [progressMenuState, setProgressMenuState] = useState<{ pathname: string; open: boolean } | null>(null);
+  const isProgressOpen = progressMenuState?.pathname === pathname
+    ? progressMenuState.open
+    : isProgressActive;
   const tr = (text: string) => translate(language, text);
   const xp = session?.xp ?? 0;
   const level = calculateLevel(xp);
   const progress = (level.currentLevelXp / level.nextLevelXp) * 100;
-  const flattenedLinks = navGroups.flatMap((group) => group.items);
+  const flattenedLinks = visibleGroups.flatMap((group) => group.items.flatMap((item) => (
+    "subItems" in item ? item.subItems : [item]
+  )));
 
   const loadUserChats = useCallback(async () => {
     if (!session?.id || isGuest) {
@@ -111,13 +152,26 @@ export function Sidebar() {
 
     try {
       const supabase = createSupabaseBrowserClient();
-      const { data, error } = await supabase
+      let rows: { id: string; title: string; is_pinned?: boolean }[] | null = null;
+      const pinned = await supabase
         .from("chats")
-        .select("id, title")
+        .select("id, title, is_pinned")
+        .order("is_pinned", { ascending: false })
         .order("updated_at", { ascending: false })
-        .limit(8);
-      if (error) throw error;
-      setUserChats(data ?? []);
+        .limit(25);
+      if (pinned.error) {
+        // The is_pinned column is added by supabase/schema_update_pins_cards.sql; keep the list usable without it.
+        const plain = await supabase
+          .from("chats")
+          .select("id, title")
+          .order("updated_at", { ascending: false })
+          .limit(25);
+        if (plain.error) throw plain.error;
+        rows = plain.data;
+      } else {
+        rows = pinned.data;
+      }
+      setUserChats(rows ?? []);
       setChatHistoryError(false);
     } catch (error) {
       console.error("Unable to load recent chats:", error);
@@ -135,11 +189,65 @@ export function Sidebar() {
     };
   }, [loadUserChats, pathname]);
 
+  useEffect(() => {
+    applyTheme(theme);
+  }, [theme]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setCollapsed(window.localStorage.getItem(COLLAPSED_KEY) === "1");
+      const savedMode = window.localStorage.getItem(VIEW_MODE_KEY);
+      if (savedMode === "student" || savedMode === "teacher") setStoredViewMode(savedMode);
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
+  }, []);
+
+  function toggleCollapsed() {
+    const next = !collapsed;
+    setCollapsed(next);
+    window.localStorage.setItem(COLLAPSED_KEY, next ? "1" : "0");
+  }
+
+  function selectViewMode(next: ViewMode) {
+    setStoredViewMode(next);
+    window.localStorage.setItem(VIEW_MODE_KEY, next);
+    router.push(next === "teacher" ? "/teacher-tools" : "/learning-path");
+  }
+
+  async function togglePinChat(chatId: string, currentlyPinned: boolean) {
+    setDeleteError(false);
+    try {
+      const supabase = createSupabaseBrowserClient();
+      const { error } = await supabase.from("chats").update({ is_pinned: !currentlyPinned }).eq("id", chatId);
+      if (error) throw error;
+      setUserChats((current) => current
+        .map((chat) => (chat.id === chatId ? { ...chat, is_pinned: !currentlyPinned } : chat))
+        .sort((a, b) => Number(Boolean(b.is_pinned)) - Number(Boolean(a.is_pinned))));
+    } catch (error) {
+      console.error("Unable to pin the chat:", error);
+      setDeleteError(true);
+    }
+  }
+
+  async function deleteChat(chatId: string) {
+    if (!window.confirm(tr("Vai dzēst šo sarunu? To nevar atsaukt."))) return;
+    setDeleteError(false);
+    try {
+      const supabase = createSupabaseBrowserClient();
+      const { error } = await supabase.from("chats").delete().eq("id", chatId);
+      if (error) throw error;
+      setUserChats((current) => current.filter((chat) => chat.id !== chatId));
+      if (pathname === `/chat/${chatId}`) router.push("/chat");
+    } catch (error) {
+      console.error("Unable to delete the chat:", error);
+      setDeleteError(true);
+    }
+  }
+
   function cycleTheme() {
     const modes: ThemeMode[] = ["light", "dark", "contrast"];
     const next = modes[(modes.indexOf(theme) + 1) % modes.length];
-    setTheme(next);
-    applyTheme(next);
+    setStoredTheme(next);
   }
 
   async function selectLanguage(next: Language) {
@@ -154,16 +262,26 @@ export function Sidebar() {
 
   return (
     <>
-      <nav aria-label={tr("Galvenā navigācija")} className="flex shrink-0 gap-1 overflow-x-auto border-b border-border bg-sidebar-background px-3 py-2 xl:hidden">
+      <nav aria-label={tr("Galvenā navigācija")} className="flex shrink-0 gap-1 overflow-x-auto border-b border-border bg-sidebar-background px-3 py-2 xl:hidden print:hidden!">
         {flattenedLinks.map((item) => (
-          <NavItem key={item.href} {...item} label={tr(item.label)} active={pathname === item.href} compact />
+          <NavItem key={item.href} {...item} label={tr(item.label)} active={isPathActive(pathname, item.href)} compact />
         ))}
       </nav>
 
-      <aside className="hidden h-screen w-[240px] shrink-0 select-none flex-col justify-between border-r border-border bg-sidebar-background xl:flex">
+      <aside className={cn("hidden h-screen shrink-0 select-none flex-col justify-between border-r border-border bg-sidebar-background transition-[width] duration-200 xl:flex print:hidden!", collapsed ? "w-14" : "w-[240px]")}>
         <div className="flex min-h-0 flex-1 flex-col">
-          <div className="p-4">
-            <Link href="/chat" className="flex items-center gap-3 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <div className={cn("flex items-center gap-2 p-4", collapsed && "justify-center px-2")}>
+            <button
+              type="button"
+              onClick={toggleCollapsed}
+              aria-label={tr(collapsed ? "Atvērt sānu joslu" : "Aizvērt sānu joslu")}
+              aria-expanded={!collapsed}
+              title={tr(collapsed ? "Atvērt sānu joslu" : "Aizvērt sānu joslu")}
+              className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <Menu className="h-5 w-5" aria-hidden="true" />
+            </button>
+            <Link href="/chat" className={cn("flex min-w-0 items-center gap-3 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring", collapsed && "hidden")}>
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                 <Music2 className="h-5 w-5 stroke-[1.75]" />
               </div>
@@ -174,7 +292,23 @@ export function Sidebar() {
             </Link>
           </div>
 
-          <nav aria-label={tr("Galvenā navigācija")} className="flex-1 space-y-6 overflow-y-auto px-3 py-2">
+          <nav aria-label={tr("Galvenā navigācija")} className={cn("flex-1 space-y-6 overflow-y-auto px-3 py-2", collapsed && "hidden")}>
+            <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1" role="group" aria-label={tr("Skats")}>
+              {(["student", "teacher"] as const).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  aria-pressed={viewMode === mode}
+                  onClick={() => selectViewMode(mode)}
+                  className={cn(
+                    "rounded-md px-2 py-1.5 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    viewMode === mode ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {tr(mode === "student" ? "Skolēnam / Interesentam" : "Skolotājam")}
+                </button>
+              ))}
+            </div>
             <div className="space-y-1">
               <Link
                 href="/chat"
@@ -187,36 +321,132 @@ export function Sidebar() {
               <p className="px-3 pt-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                 {tr("Pēdējās sarunas")}
               </p>
-              {userChats.length > 0 ? userChats.map((chat) => (
-                <NavItem
-                  key={chat.id}
-                  href={`/chat/${chat.id}`}
-                  icon={MessageSquare}
-                  label={chat.title}
-                  active={pathname === `/chat/${chat.id}`}
-                  title={chat.title}
-                />
-              )              ) : chatHistoryError ? (
+              {userChats.length > 0 ? (
+                <div className="max-h-64 space-y-1 overflow-y-auto">
+                  {userChats.map((chat) => (
+                    <div key={chat.id} className="group relative">
+                      <NavItem
+                        href={`/chat/${chat.id}`}
+                        icon={chat.is_pinned ? Pin : MessageSquare}
+                        label={chat.title}
+                        active={pathname === `/chat/${chat.id}`}
+                        title={chat.title}
+                        className="pr-16"
+                      />
+                      <div className="absolute right-1 top-1/2 flex -translate-y-1/2 items-center">
+                        <button
+                          type="button"
+                          onClick={() => void togglePinChat(chat.id, Boolean(chat.is_pinned))}
+                          aria-label={`${tr(chat.is_pinned ? "Atspraust sarunu" : "Piespraust sarunu")}: ${chat.title}`}
+                          aria-pressed={Boolean(chat.is_pinned)}
+                          title={tr(chat.is_pinned ? "Atspraust sarunu" : "Piespraust sarunu")}
+                          className={cn(
+                            "rounded-md p-1.5 opacity-0 transition-opacity hover:bg-muted focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group-hover:opacity-100",
+                            pathname === `/chat/${chat.id}` ? "text-primary-foreground hover:bg-primary-foreground/20" : "text-muted-foreground hover:text-foreground"
+                          )}
+                        >
+                          <Pin className={cn("h-3.5 w-3.5", chat.is_pinned && "fill-current")} aria-hidden="true" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void deleteChat(chat.id)}
+                          aria-label={`${tr("Dzēst sarunu")}: ${chat.title}`}
+                          title={tr("Dzēst sarunu")}
+                          className={cn(
+                            "rounded-md p-1.5 opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group-hover:opacity-100",
+                            pathname === `/chat/${chat.id}` ? "text-primary-foreground hover:bg-primary-foreground/20 hover:text-primary-foreground" : "text-muted-foreground"
+                          )}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : chatHistoryError ? (
                 <p className="px-3 py-2 text-xs text-destructive" role="status">{tr("Neizdevās ielādēt nesenās sarunas.")}</p>
               ) : (
                 <p className="px-3 py-2 text-xs text-muted-foreground">{tr("Sarunu vēl nav")}</p>
               )}
+              {deleteError && <p className="px-3 py-1 text-xs text-destructive" role="alert">{tr("Neizdevās izdzēst sarunu.")}</p>}
             </div>
 
-            {navGroups.slice(1).map((group) => (
+            {visibleGroups.map((group, groupIndex) => {
+              // The "New chat" button above already covers the chat link.
+              const groupItems = groupIndex === 0
+                ? group.items.filter((item) => !("href" in item) || item.href !== "/chat")
+                : group.items;
+
+              return (
               <div key={group.label} className="space-y-1">
-                <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                  {tr(group.label)}
-                </p>
-                {group.items.map((item) => (
-                  <NavItem key={item.href} {...item} label={tr(item.label)} active={pathname === item.href} />
-                ))}
+                {!groupItems.some((item) => "subItems" in item) && (
+                  <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                    {tr(group.label)}
+                  </p>
+                )}
+                {groupItems.map((item) => {
+                  if ("subItems" in item) {
+                    const hasActiveChild = item.subItems.some((subItem) => isPathActive(pathname, subItem.href));
+
+                    return (
+                      <div key={item.label} className="space-y-1">
+                        <button
+                          type="button"
+                          aria-expanded={isProgressOpen}
+                          aria-controls="progress-navigation"
+                          onClick={() => setProgressMenuState({ pathname, open: !isProgressOpen })}
+                          className={cn(
+                            "flex w-full items-center justify-between rounded-lg px-3 py-2 text-[13px] font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                            hasActiveChild ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                          )}
+                        >
+                          <span className="flex items-center gap-2.5">
+                            <item.icon className="h-4 w-4 shrink-0 stroke-[1.75]" aria-hidden="true" />
+                            {tr(item.label)}
+                          </span>
+                          <ChevronDown className={cn("h-4 w-4 transition-transform duration-200", isProgressOpen && "rotate-180")} aria-hidden="true" />
+                        </button>
+                        <div
+                          id="progress-navigation"
+                          className={cn(
+                            "grid transition-[grid-template-rows,opacity] duration-300 ease-in-out",
+                            isProgressOpen ? "grid-rows-[1fr] opacity-100" : "pointer-events-none grid-rows-[0fr] opacity-0"
+                          )}
+                        >
+                          <div className="min-h-0 overflow-hidden border-l border-border pl-2">
+                            <div className="space-y-1 py-1">
+                              {item.subItems.map((subItem) => (
+                                <NavItem
+                                  key={subItem.href}
+                                  {...subItem}
+                                  label={tr(subItem.label)}
+                                  active={isPathActive(pathname, subItem.href)}
+                                  nested
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <NavItem
+                      key={item.href}
+                      {...item}
+                      label={tr(item.label)}
+                      active={isPathActive(pathname, item.href)}
+                    />
+                  );
+                })}
               </div>
-            ))}
+              );
+            })}
           </nav>
         </div>
 
-        <div className="space-y-3 border-t border-border bg-background/50 p-3">
+        <div className={cn("space-y-3 border-t border-border bg-background/50 p-3", collapsed && "hidden")}>
           <div className="rounded-lg border border-border bg-card p-3">
             <div className="mb-2 flex items-center justify-between text-xs">
               <span className="font-semibold">{tr("Līmenis")} {level.level}</span>
@@ -290,7 +520,7 @@ export function Sidebar() {
   );
 }
 
-function NavItem({ href, icon: Icon, label, active, compact = false, title }: NavEntry & { active: boolean; compact?: boolean; title?: string }) {
+function NavItem({ href, icon: Icon, label, active, compact = false, nested = false, title, className }: NavLinkEntry & { active: boolean; compact?: boolean; nested?: boolean; title?: string; className?: string }) {
   return (
     <Link
       href={href}
@@ -298,8 +528,9 @@ function NavItem({ href, icon: Icon, label, active, compact = false, title }: Na
       title={title ?? label}
       className={cn(
         "flex items-center gap-2.5 rounded-lg text-[13px] font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-        compact ? "shrink-0 px-3 py-2 text-xs" : "px-3 py-2",
-        active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+        compact ? "shrink-0 px-3 py-2 text-xs" : nested ? "ml-1 px-2.5 py-1.5 text-xs" : "px-3 py-2",
+        active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground",
+        className
       )}
     >
       <Icon className="h-4 w-4 shrink-0 stroke-[1.75]" aria-hidden="true" />

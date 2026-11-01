@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { ArrowRight, Check, CheckCircle2, Circle, Lock, Music2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import { useAppSession } from "@/components/providers/app-provider";
 import { fetchJson } from "@/lib/fetch-json";
 import { learningPathLessons } from "@/lib/music-learning-data";
@@ -35,6 +36,7 @@ export default function LearningPathPage() {
   }, [session?.isGuest, language]);
 
   const isCompleted = (id: string) => id === "notes" || completed.includes(id);
+  const completedCount = learningPathLessons.filter((lesson) => isCompleted(lesson.id)).length;
 
   function statusFor(index: number): LessonStatus {
     const lesson = learningPathLessons[index];
@@ -78,6 +80,16 @@ export default function LearningPathPage() {
 
       {error && <p className="text-sm text-destructive" role="alert">{error}</p>}
       {loading && <p className="text-sm text-muted-foreground" role="status">{tr("Ielādē progresu…")}</p>}
+
+      <Card className="border-border bg-card shadow-sm">
+        <CardContent className="space-y-2">
+          <div className="flex items-center justify-between text-sm">
+            <span className="font-medium text-foreground">{tr("Pabeigtās tēmas")}</span>
+            <span className="tabular-nums text-muted-foreground">{completedCount} / {learningPathLessons.length}</span>
+          </div>
+          <Progress value={(completedCount / learningPathLessons.length) * 100} indicatorClassName="bg-emerald-500" />
+        </CardContent>
+      </Card>
 
       <div className="space-y-4">
         {learningPathLessons.map((lesson, index) => {

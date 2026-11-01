@@ -5,10 +5,10 @@ export function courseForGrade(grade: number): string | null {
   return grade >= 9 && grade <= 12 ? COURSE_NUMERALS[grade - 9] : null;
 }
 
-export function gradeLabel(grade: number | string, gradeWord: string, includeCourse = true): string {
+export function gradeLabel(grade: number | string, gradeWord: string, includeCourse = true, courseWord = "kurss"): string {
   const value = Number(grade);
   const course = includeCourse ? courseForGrade(value) : null;
-  return course ? `${value}. ${gradeWord} / ${course} kurss` : `${value}. ${gradeWord}`;
+  return course ? `${value}. ${gradeWord} / ${course} ${courseWord}` : `${value}. ${gradeWord}`;
 }
 
 const COURSE_BY_TEXT: Record<string, number> = { "1": 9, i: 9, "2": 10, ii: 10, "3": 11, iii: 11, "4": 12, iv: 12 };

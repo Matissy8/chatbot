@@ -15,6 +15,7 @@ import { translate } from "@/lib/i18n";
 
 const MAX_FILE_SIZE = 8 * 1024 * 1024;
 const acceptedExtensions = new Set(["jpg", "jpeg", "png", "webp", "gif", "pdf", "docx", "txt", "md"]);
+const assistantSubjects = ["Vispārīgs mācību uzdevums", "Matemātika", "Fizika", "Harmonija", "Solfedžo", "Cits"];
 
 export default function AssistantScreenPage() {
   const { language } = useAppSession();
@@ -141,9 +142,9 @@ export default function AssistantScreenPage() {
 
             <div className="space-y-2">
               <label htmlFor="assistant-subject" className="text-sm font-medium">{tr("Priekšmets")}</label>
-              <Select value={subject} onValueChange={(value) => { if (typeof value === "string") setSubject(value); }}>
+              <Select items={Object.fromEntries(assistantSubjects.map((value) => [value, tr(value)]))} value={subject} onValueChange={(value) => { if (typeof value === "string") setSubject(value); }}>
                 <SelectTrigger id="assistant-subject" className="w-full"><SelectValue /></SelectTrigger>
-                <SelectContent>{["Vispārīgs mācību uzdevums", "Matemātika", "Fizika", "Harmonija", "Solfedžo", "Cits"].map((value) => <SelectItem key={value} value={value}>{tr(value)}</SelectItem>)}</SelectContent>
+                <SelectContent>{assistantSubjects.map((value) => <SelectItem key={value} value={value}>{tr(value)}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="space-y-2">

@@ -1,3 +1,4 @@
+// Latvian note names: H is the natural si, B is si-flat.
 const noteOffsets: Record<string, number> = {
   C: 0,
   D: 2,
@@ -5,7 +6,8 @@ const noteOffsets: Record<string, number> = {
   F: 5,
   G: 7,
   A: 9,
-  B: 11,
+  B: 10,
+  H: 11,
 };
 
 const syllableNotes: Record<string, string> = {
@@ -15,10 +17,10 @@ const syllableNotes: Record<string, string> = {
   fa: "F",
   sol: "G",
   la: "A",
-  si: "B",
+  si: "H",
 };
 
-const noteSequencePattern = /\b((?:Do|Re|Mi|Fa|Sol|La|Si|[A-G](?:#|b)?)(?:\s*[-–—]\s*(?:Do|Re|Mi|Fa|Sol|La|Si|[A-G](?:#|b)?)){2,3})\b/gi;
+const noteSequencePattern = /\b((?:Do|Re|Mi|Fa|Sol|La|Si|[A-H](?:#|b)?)(?:\s*[-–—]\s*(?:Do|Re|Mi|Fa|Sol|La|Si|[A-H](?:#|b)?)){2,3})\b/gi;
 
 let audioContext: AudioContext | null = null;
 
@@ -30,8 +32,9 @@ function noteFrequency(token: string): number {
   const normalized = token.toLowerCase();
   const isSolfeggio = normalized in syllableNotes;
   const noteName = isSolfeggio ? syllableNotes[normalized] : token[0].toUpperCase();
-  const accidental = isSolfeggio ? "" : token.slice(1);
-  const semitoneOffset = (accidental === "#" ? 1 : accidental === "b" ? -1 : 0);
+  const accidental = isSolfeggio ? "" : token.slice(1).toLowerCase();
+  // International "Bb" already means si-flat, so it must not be lowered twice.
+  const semitoneOffset = normalized === "bb" ? 0 : accidental === "#" ? 1 : accidental === "b" ? -1 : 0;
   const midi = 60 + noteOffsets[noteName] + semitoneOffset;
   return 440 * 2 ** ((midi - 69) / 12);
 }

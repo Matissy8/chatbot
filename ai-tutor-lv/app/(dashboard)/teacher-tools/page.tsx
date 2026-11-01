@@ -15,6 +15,9 @@ import { translate } from "@/lib/i18n";
 
 type ResourceType = "lesson-plan" | "worksheet" | "quiz";
 
+const teacherSubjects = ["Mūzika", "Matemātika", "Fizika", "Vēsture", "Latviešu valoda", "Cits"];
+const teacherGrades = [...Array.from({ length: 12 }, (_, index) => String(index + 1)), "Vidusskola", "Pieaugušie"];
+
 const resourceTypes: { value: ResourceType; label: string; description: string; icon: typeof BookOpen }[] = [
   { value: "lesson-plan", label: "Stundas plāns", description: "Mērķi, aktivitātes un laika plāns", icon: BookOpen },
   { value: "worksheet", label: "Darba lapa", description: "Uzdevumi ar skolotāja atbilžu atslēgu", icon: ScrollText },
@@ -29,9 +32,11 @@ export default function TeacherToolsPage() {
   const [grade, setGrade] = useState("8");
   const [resourceType, setResourceType] = useState<ResourceType>("lesson-plan");
   const [content, setContent] = useState("");
+  const [isFallback, setIsFallback] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
+  const gradeOptionLabel = (value: string) => /^\d+$/.test(value) ? gradeLabel(value, tr("klase"), language === "lv", tr("kurss")) : tr(value);
 
   async function generateMaterial() {
     if (topic.trim().length < 2 || loading) return;
@@ -39,13 +44,14 @@ export default function TeacherToolsPage() {
     setError("");
     setCopied(false);
     try {
-      const data = await fetchJson<{ content?: string }>("/api/teacher-tools", {
+      const data = await fetchJson<{ content?: string; isFallback?: boolean }>("/api/teacher-tools", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ topic: topic.trim(), subject, grade, type: resourceType }),
         timeoutMs: 65_000,
       });
       setContent(data.content ?? "");
+      setIsFallback(Boolean(data.isFallback));
     } catch (cause) {
       setError(tr(cause instanceof Error ? cause.message : "Neizdevās izveidot materiālu."));
     } finally {
@@ -75,15 +81,15 @@ export default function TeacherToolsPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-6 p-4 sm:p-6">
-      <header>
+    <div className="mx-auto w-full max-w-6xl space-y-6 p-4 sm:p-6 print:max-w-none print:p-0">
+      <header className="print:hidden">
         <p className="text-sm font-medium text-muted-foreground">{tr("Sagatavo mācību materiālus")}</p>
         <h1 className="mt-1 text-3xl font-bold tracking-tight">{tr("Skolotāja rīki")}</h1>
         <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{tr("Izveido pielāgojamu stundas plānu, darba lapu vai pārbaudes darbu. Rezultātu vari rediģēt, kopēt vai izdrukāt.")}</p>
       </header>
 
-      <div className="grid items-start gap-5 lg:grid-cols-[340px_minmax(0,1fr)]">
-        <Card className="border-border">
+      <div className="grid items-start gap-5 lg:grid-cols-[340px_minmax(0,1fr)] print:block">
+        <Card className="border-border print:hidden">
           <CardHeader>
             <CardTitle className="text-base">{tr("Materiāla iestatījumi")}</CardTitle>
             <CardDescription>{tr("Norādi tēmu un mērķauditoriju.")}</CardDescription>
@@ -95,16 +101,16 @@ export default function TeacherToolsPage() {
             </div>
             <div className="space-y-2">
               <label htmlFor="material-subject" className="text-sm font-medium">{tr("Priekšmets")}</label>
-              <Select value={subject} onValueChange={(value) => { if (typeof value === "string") setSubject(value); }}>
+              <Select items={Object.fromEntries(teacherSubjects.map((value) => [value, tr(value)]))} value={subject} onValueChange={(value) => { if (typeof value === "string") setSubject(value); }}>
                 <SelectTrigger id="material-subject" className="w-full"><SelectValue /></SelectTrigger>
-                <SelectContent>{["Mūzika", "Matemātika", "Fizika", "Vēsture", "Latviešu valoda", "Cits"].map((value) => <SelectItem key={value} value={value}>{tr(value)}</SelectItem>)}</SelectContent>
+                <SelectContent>{teacherSubjects.map((value) => <SelectItem key={value} value={value}>{tr(value)}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
               <label htmlFor="material-grade" className="text-sm font-medium">{tr("Klase vai līmenis")}</label>
-              <Select value={grade} onValueChange={(value) => { if (typeof value === "string") setGrade(value); }}>
+              <Select items={Object.fromEntries(teacherGrades.map((value) => [value, gradeOptionLabel(value)]))} value={grade} onValueChange={(value) => { if (typeof value === "string") setGrade(value); }}>
                 <SelectTrigger id="material-grade" className="w-full"><SelectValue /></SelectTrigger>
-                <SelectContent>{[...Array.from({ length: 12 }, (_, index) => String(index + 1)), "Vidusskola", "Pieaugušie"].map((value) => <SelectItem key={value} value={value}>{/^\d+$/.test(value) ? gradeLabel(value, tr("klase"), language === "lv") : tr(value)}</SelectItem>)}</SelectContent>
+                <SelectContent>{teacherGrades.map((value) => <SelectItem key={value} value={value}>{gradeOptionLabel(value)}</SelectItem>)}</SelectContent>
               </Select>
             </div>
 
@@ -129,8 +135,8 @@ export default function TeacherToolsPage() {
           </CardContent>
         </Card>
 
-        <Card className="min-h-[500px] border-border">
-          <CardHeader className="flex flex-row items-center justify-between gap-3 border-b border-border">
+        <Card className="min-h-[500px] border-border print:min-h-0 print:border-0 print:shadow-none print:ring-0">
+          <CardHeader className="flex flex-row items-center justify-between gap-3 border-b border-border print:hidden">
             <div><CardTitle className="text-base">{tr("Priekšskatījums")}</CardTitle><CardDescription>{tr("Materiālu vari pārskatīt un izdrukāt.")}</CardDescription></div>
             {content && <div className="flex gap-1">
               <Button type="button" variant="ghost" size="icon" onClick={() => void copyMaterial()} aria-label={tr(copied ? "Nokopēts" : "Kopēt materiālu")} title={tr("Kopēt")}>
@@ -146,9 +152,16 @@ export default function TeacherToolsPage() {
           </CardHeader>
           <CardContent className="p-5 sm:p-7">
             {content ? (
-              <article className="prose prose-sm max-w-none text-foreground dark:prose-invert prose-headings:font-semibold prose-strong:text-foreground prose-li:marker:text-muted-foreground print:prose-sm">
+              <>
+                {isFallback && (
+                  <p className="mb-4 rounded-lg border border-amber-300/60 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-500/30 dark:bg-amber-950/30 dark:text-amber-200 print:hidden" role="status">
+                    {tr("AI modelis šobrīd nebija pieejams — parādīts struktūras paraugs, kas jāpapildina pašam.")}
+                  </p>
+                )}
+                <article className="prose prose-sm max-w-none text-foreground dark:prose-invert prose-headings:font-semibold prose-strong:text-foreground prose-li:marker:text-muted-foreground print:prose-sm">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
               </article>
+              </>
             ) : (
               <div className="flex min-h-[360px] flex-col items-center justify-center text-center">
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-border bg-muted"><BookOpen className="h-5 w-5" /></div>

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useActionState, useState } from "react";
 import { Bot, LoaderCircle } from "lucide-react";
-import { enterGuestMode, login, signup } from "@/app/(auth)/actions";
+import { enterGuestMode, login, resendConfirmation, signup } from "@/app/(auth)/actions";
 import { GoogleAuthButton } from "@/components/auth/google-auth-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,6 +27,7 @@ export function AuthForm({
   const { language, changeLanguage } = useAppSession();
   const tr = (text: string) => translate(language, text);
   const [state, formAction, pending] = useActionState(isLogin ? login : signup, initialError ? { error: initialError } : {});
+  const [resendState, resendAction, resending] = useActionState(resendConfirmation, {});
   const [oauthError, setOauthError] = useState<string | null>(null);
   const [languageError, setLanguageError] = useState("");
 
@@ -83,6 +84,11 @@ export function AuthForm({
                 minLength={6}
                 required
               />
+              {isLogin && (
+                <Link href="/forgot-password" className="block text-right text-xs font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">
+                  {tr("Aizmirsi paroli?")}
+                </Link>
+              )}
             </div>
 
             {state.error && <p className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive" role="alert">{tr(state.error)}</p>}
@@ -94,6 +100,18 @@ export function AuthForm({
               {tr(pending ? "Lūdzu, uzgaidi…" : isLogin ? "Pieslēgties" : "Reģistrēt kontu")}
             </Button>
           </form>
+
+          {!isLogin && state.message && state.email && (
+            <form action={resendAction} className="mt-3 space-y-2">
+              <input type="hidden" name="email" value={state.email} />
+              <Button type="submit" variant="outline" size="sm" disabled={resending} className="w-full">
+                {resending && <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />}
+                {tr("Nosūtīt apstiprinājuma e-pastu vēlreiz")}
+              </Button>
+              {resendState.message && <p className="text-center text-xs text-muted-foreground" role="status">{tr(resendState.message)}</p>}
+              {resendState.error && <p className="text-center text-xs text-destructive" role="alert">{tr(resendState.error)}</p>}
+            </form>
+          )}
 
           {googleEnabled && isSupabaseConfigured() && (
             <div className="mt-4 space-y-4">
