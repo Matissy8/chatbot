@@ -347,7 +347,9 @@ begin
   if current_user_id is null then raise exception 'not authorized'; end if;
   if p_card_id is null or p_knew is null or p_card_id not in (
     'allegro', 'andante', 'forte', 'piano', 'crescendo',
-    'diminuendo', 'staccato', 'legato', 'perfect-fifth', 'dominant-seventh'
+    'diminuendo', 'staccato', 'legato', 'perfect-fifth', 'dominant-seventh',
+    'note-h-b', 'enharmonism', 'tritone', 'thirds', 'd7-inversions',
+    'vii7-dim', 'tempo-rubato', 'smorzando', 'darzins-valsis'
   ) then raise exception 'unknown flashcard'; end if;
 
   insert into public.flashcard_progress (user_id, card_id, known_count, review_count)

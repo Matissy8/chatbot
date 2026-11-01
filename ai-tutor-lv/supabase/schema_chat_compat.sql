@@ -7,6 +7,12 @@ alter table public.chats
 alter table public.chats
   add column if not exists updated_at timestamptz not null default now();
 
+alter table public.chats
+  add column if not exists is_pinned boolean not null default false;
+
+create index if not exists chats_user_pinned_idx
+  on public.chats (user_id, is_pinned desc, updated_at desc);
+
 alter table public.profiles
   add column if not exists plan text not null default 'free'
   check (plan in ('free', 'pro'));
