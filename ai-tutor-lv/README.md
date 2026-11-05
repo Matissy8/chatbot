@@ -9,6 +9,7 @@ Personalized AI learning platform for Latvian schools, music schools, teachers, 
 - XP, levels, streaks, and achievements
 - Quick music-theory quizzes with server-verified answers and XP
 - Music flashcards, a sequential learning path, and in-chat note/chord playback
+- Microphone-based single-note pitch practice with on-device analysis and Gemini feedback
 - Leaderboard and progress tracking
 - Practice modules and teacher tools
 - Latvian, English, and Russian interface with a profile-saved language preference
@@ -54,7 +55,7 @@ Users can switch the interface between Latvian, English, and Russian from the si
 
 ### Plans and daily limit
 
-Free users get 20 AI chat questions per day (the day rolls over at midnight in Latvia); PRO users are unlimited. The server reserves a question before contacting Gemini, confirms it only after a successful response, and cancels it on failure. Clients cannot change their own plan. Until payments are connected, set a user's plan manually in the Supabase SQL Editor: `update public.profiles set plan = 'pro' where id = '<user id>';`. Keep the reservation RPC's limit and `FREE_DAILY_QUESTION_LIMIT` in `lib/plans.ts` aligned.
+Free users get 20 AI questions per day (the day rolls over at midnight in Latvia); PRO users are unlimited. The server reserves a question before contacting Gemini, confirms it only after a successful response, and cancels it on failure. Pitch practice analyzes microphone audio on the device; it sends only the exercise results to Gemini, and requesting its feedback uses one daily AI question. Microphone access requires HTTPS or localhost. Clients cannot change their own plan. Until payments are connected, set a user's plan manually in the Supabase SQL Editor: `update public.profiles set plan = 'pro' where id = '<user id>';`. Keep the reservation RPC's limit and `FREE_DAILY_QUESTION_LIMIT` in `lib/plans.ts` aligned.
 
 ### Google sign-in
 

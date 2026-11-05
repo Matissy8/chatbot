@@ -13,6 +13,7 @@ import { fetchJson } from "@/lib/fetch-json";
 import { useAppSession } from "@/components/providers/app-provider";
 import { translate } from "@/lib/i18n";
 import { TopicQuiz } from "@/components/learning/TopicQuiz";
+import { PitchPractice } from "@/components/learning/PitchPractice";
 
 const MAX_FILE_SIZE = 8 * 1024 * 1024;
 const acceptedExtensions = new Set(["mp3", "wav", "ogg", "flac", "aac", "aiff", "aif"]);
@@ -29,13 +30,14 @@ export default function AudioQuizPage() {
   const { language, session } = useAppSession();
   const tr = (text: string) => translate(language, text);
   const isGuest = Boolean(session?.isGuest);
-  const [mode, setMode] = useState<"audio" | "topics">("audio");
+  const [mode, setMode] = useState<"audio" | "topics" | "pitch">("audio");
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-4 p-4 sm:p-6">
-      <div className="flex gap-2" role="group" aria-label={tr("Viktorīnas režīms")}>
+      <div className="flex flex-wrap gap-2" role="group" aria-label={tr("Viktorīnas režīms")}>
         <Button type="button" size="sm" variant={mode === "audio" ? "default" : "outline"} aria-pressed={mode === "audio"} onClick={() => setMode("audio")}>{tr("Audio analīze")}</Button>
         <Button type="button" size="sm" variant={mode === "topics" ? "default" : "outline"} aria-pressed={mode === "topics"} onClick={() => setMode("topics")}>{tr("Tēmu viktorīna")}</Button>
+        <Button type="button" size="sm" variant={mode === "pitch" ? "default" : "outline"} aria-pressed={mode === "pitch"} onClick={() => setMode("pitch")}>{tr("Intonācijas treniņš")}</Button>
       </div>
       {isGuest && mode === "audio" && (
         <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-foreground" role="status">
@@ -45,7 +47,7 @@ export default function AudioQuizPage() {
           </Link>
         </div>
       )}
-      {mode === "audio" ? <AudioAnalysis /> : <TopicQuiz />}
+      {mode === "audio" ? <AudioAnalysis /> : mode === "topics" ? <TopicQuiz /> : <PitchPractice />}
     </div>
   );
 }
