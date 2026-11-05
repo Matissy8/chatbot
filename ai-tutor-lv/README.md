@@ -13,7 +13,7 @@ Personalized AI learning platform for Latvian schools, music schools, teachers, 
 - Practice modules and teacher tools
 - Latvian, English, and Russian interface with a profile-saved language preference
 - Teaching-material analysis for images, PDF, DOCX, TXT, and Markdown files
-- AI provider abstraction for OpenAI / Anthropic
+- Google Gemini AI integration
 - Responsive dark-light UI
 
 ## Stack
@@ -32,7 +32,7 @@ Personalized AI learning platform for Latvian schools, music schools, teachers, 
    npm install
 2. Copy environment variables:
    cp .env.example .env.local
-3. Add the Supabase project URL, anon/publishable key, and server-only `SUPABASE_SERVICE_ROLE_KEY` to `.env.local`. For Gemini, create a key in Google AI Studio and set `GEMINI_API_KEY`; OpenAI and Anthropic are also supported.
+3. Add the Supabase project URL, anon/publishable key, and server-only `SUPABASE_SERVICE_ROLE_KEY` to `.env.local`. Create a Gemini API key in Google AI Studio and set `GEMINI_API_KEY`.
    To temporarily enable a non-persistent guest preview, set `NEXT_PUBLIC_ENABLE_GUEST_MODE=true` and restart the dev server. Remove the flag or set it to `false` when ready for authenticated-only access. Guest chat uses the local response fallback, practice scores remain in the browser, and teacher tools use local templates; guest activity is not saved and earns no XP. Photo AI analysis requires an authenticated account.
 4. In the Supabase SQL Editor, run `supabase/schema_full.sql`, `supabase/schema_chat_compat.sql`, `supabase/schema_daily_usage.sql`, `supabase/schema_learning_features.sql`, then `supabase/schema_leaderboard.sql`. `schema_daily_usage.sql` installs the reservation RPCs `try_reserve_daily_usage`, `confirm_daily_usage`, and `cancel_daily_usage`.
 5. For immediate signup-to-onboarding testing, disable email confirmation in Supabase Auth; otherwise users must confirm their email before signing in.
@@ -76,4 +76,4 @@ Set Vercel environment variables separately in Vercel; GitHub Actions secrets ar
 
 ## Notes
 
-The app requires Supabase configuration for authentication. AI chat and material generation use Gemini, OpenAI, or Anthropic when a valid provider key is configured; otherwise educational text chat and teacher materials fall back to local templates. Uploaded learning materials (images, PDF, DOCX, TXT, or Markdown) are sent to the configured AI provider for analysis and are not persisted by the app; the provider's own data-handling policy applies.
+The app requires Supabase configuration for authentication. AI chat and material generation use Google Gemini when `GEMINI_API_KEY` is configured; otherwise educational text chat and teacher materials fall back to local templates. Uploaded learning materials (images, PDF, DOCX, TXT, or Markdown) are sent to Google Gemini for analysis and are not persisted by the app; the provider's own data-handling policy applies.

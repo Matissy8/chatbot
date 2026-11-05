@@ -61,7 +61,7 @@ async function persistAssistantReply(supabase: ServerClient, chatId: string, use
 }
 
 async function handlePost(request: Request) {
-  let body: { messages?: unknown; chatId?: unknown; subject?: unknown };
+  let body: { messages?: unknown; chatId?: unknown; subject?: unknown; language?: unknown };
   try {
     body = await request.json();
   } catch {
@@ -95,7 +95,8 @@ async function handlePost(request: Request) {
   const cookieStore = await cookies();
   const isGuest = isGuestModeEnabled() && cookieStore.get(GUEST_COOKIE_NAME)?.value === "1";
   if (isGuest) {
-    const text = await generateTutorReply({ messages, language: "lv", allowProviders: false });
+    const language: TutorLanguage = body.language === "en" || body.language === "ru" ? body.language : "lv";
+    const text = await generateTutorReply({ messages, language, allowProviders: false });
     return new Response(text, { headers: { ...BASE_HEADERS, "Cache-Control": "no-store", "X-Guest-Mode": "true" } });
   }
 

@@ -55,6 +55,7 @@ export function FloatingAssistant() {
       const result = await streamChatReply({
         messages: nextMessages,
         chatId: chatIdRef.current,
+        language,
         signal: controller.signal,
         onText: (value) => setMessages([...nextMessages, { role: "assistant", content: value }]),
       });
@@ -80,7 +81,7 @@ export function FloatingAssistant() {
   }
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 sm:bottom-5 sm:right-5 print:hidden">
+    <div className="fixed bottom-20 right-4 z-50 sm:right-5 md:bottom-5 print:hidden">
       <LimitReachedModal open={limit !== null} onOpenChange={(open) => !open && setLimit(null)} limit={limit || undefined} />
       {!isOpen ? (
         <Button
@@ -95,7 +96,7 @@ export function FloatingAssistant() {
         <section
           aria-label={tr("Ātrais mācību asistents")}
           className={cn(
-            "flex max-h-[min(480px,calc(100vh-2rem))] w-[min(384px,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-2xl",
+            "flex max-h-[min(480px,calc(100dvh-7rem))] w-[min(384px,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-2xl",
             isCompact ? "h-[352px]" : "h-[480px]"
           )}
         >

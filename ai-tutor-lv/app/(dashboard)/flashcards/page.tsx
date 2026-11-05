@@ -131,7 +131,7 @@ export default function FlashcardsPage() {
             aria-label={tr(flipped ? "Rādīt jautājumu" : "Apgriezt kartīti un rādīt atbildi")}
             className="group w-full rounded-2xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            <div className="relative h-64 [perspective:1000px]">
+            <div className="relative h-72 [perspective:1000px]">
               <div
                 className={`absolute inset-0 transition-transform duration-500 [transform-style:preserve-3d] ${flipped ? "[transform:rotateY(180deg)]" : ""}`}
               >
@@ -150,11 +150,11 @@ export default function FlashcardsPage() {
           </button>
 
           {flipped && (
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Button variant="outline" onClick={() => void rateCard(false)} disabled={saving} className="h-11 gap-2">
+            <div className="grid grid-cols-2 gap-3">
+              <Button variant="outline" onClick={() => void rateCard(false)} disabled={saving} className="h-14 gap-2 border-rose-500/50 bg-rose-500/10 text-base text-rose-700 hover:bg-rose-500/20 dark:text-rose-300 md:h-11 md:text-sm">
                 <RotateCcw className="h-4 w-4" /> {tr("Mācos vēl")}
               </Button>
-              <Button onClick={() => void rateCard(true)} disabled={saving} className="h-11 gap-2">
+              <Button onClick={() => void rateCard(true)} disabled={saving} className="h-14 gap-2 bg-emerald-600 text-base text-white hover:bg-emerald-700 md:h-11 md:text-sm">
                 {tr("Zināju")} <ArrowRight className="h-4 w-4" />
               </Button>
             </div>

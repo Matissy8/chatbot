@@ -1,6 +1,7 @@
 import { RequestError, assertSession, readErrorDetails, toRequestError } from "@/lib/fetch-json";
 import type { ChatMessage } from "@/lib/chat-types";
 import { DAILY_LIMIT_CODE } from "@/lib/plans";
+import type { Language } from "@/lib/i18n";
 
 const FIRST_BYTE_TIMEOUT_MS = 55_000;
 const IDLE_TIMEOUT_MS = 30_000;
@@ -9,12 +10,14 @@ export async function streamChatReply({
   messages,
   chatId,
   subject,
+  language,
   signal: external,
   onText,
 }: {
   messages: ChatMessage[];
   chatId?: string;
   subject?: string;
+  language: Language;
   signal?: AbortSignal;
   onText: (text: string) => void;
 }): Promise<{ chatId?: string; text: string }> {
@@ -34,7 +37,7 @@ export async function streamChatReply({
     const response = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages, chatId, subject }),
+      body: JSON.stringify({ messages, chatId, subject, language }),
       signal: controller.signal,
     });
     assertSession(response);

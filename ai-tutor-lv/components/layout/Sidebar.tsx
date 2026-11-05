@@ -28,6 +28,7 @@ import {
   TrendingUp,
   Trophy,
   UserRound,
+  X,
   Zap,
   type LucideProps,
 } from "lucide-react";
@@ -113,7 +114,7 @@ function isPathActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function Sidebar() {
+export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
   const { session, language, changeLanguage } = useAppSession();
@@ -139,9 +140,6 @@ export function Sidebar() {
   const xp = session?.xp ?? 0;
   const level = calculateLevel(xp);
   const progress = (level.currentLevelXp / level.nextLevelXp) * 100;
-  const flattenedLinks = visibleGroups.flatMap((group) => group.items.flatMap((item) => (
-    "subItems" in item ? item.subItems : [item]
-  )));
 
   const loadUserChats = useCallback(async () => {
     if (!session?.id || isGuest) {
@@ -201,6 +199,15 @@ export function Sidebar() {
     }, 0);
     return () => window.clearTimeout(timeoutId);
   }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open, onClose]);
 
   function toggleCollapsed() {
     const next = !collapsed;
@@ -262,26 +269,37 @@ export function Sidebar() {
 
   return (
     <>
-      <nav aria-label={tr("Galvenā navigācija")} className="flex shrink-0 gap-1 overflow-x-auto border-b border-border bg-sidebar-background px-3 py-2 xl:hidden print:hidden!">
-        {flattenedLinks.map((item) => (
-          <NavItem key={item.href} {...item} label={tr(item.label)} active={isPathActive(pathname, item.href)} compact />
-        ))}
-      </nav>
+      {open && (
+        <div
+          onClick={onClose}
+          aria-hidden="true"
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden print:hidden"
+        />
+      )}
 
-      <aside className={cn("hidden h-screen shrink-0 select-none flex-col justify-between border-r border-border bg-sidebar-background transition-[width] duration-200 xl:flex print:hidden!", collapsed ? "w-14" : "w-[240px]")}>
+      <aside
+        onClick={(event) => {
+          if ((event.target as HTMLElement).closest("a")) onClose();
+        }}
+        className={cn(
+          "fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] select-none flex-col justify-between border-r border-border bg-sidebar-background transition-[transform,visibility,width] duration-300 ease-in-out md:static md:z-auto md:h-full md:max-w-none md:shrink-0 md:translate-x-0 md:duration-200 print:hidden!",
+          open ? "translate-x-0" : "-translate-x-full max-md:invisible",
+          collapsed ? "md:w-14" : "md:w-[240px]"
+        )}
+      >
         <div className="flex min-h-0 flex-1 flex-col">
-          <div className={cn("flex items-center gap-2 p-4", collapsed && "justify-center px-2")}>
+          <div className={cn("flex items-center gap-2 p-4", collapsed && "md:justify-center md:px-2")}>
             <button
               type="button"
               onClick={toggleCollapsed}
               aria-label={tr(collapsed ? "Atvērt sānu joslu" : "Aizvērt sānu joslu")}
               aria-expanded={!collapsed}
               title={tr(collapsed ? "Atvērt sānu joslu" : "Aizvērt sānu joslu")}
-              className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="hidden rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:block"
             >
               <Menu className="h-5 w-5" aria-hidden="true" />
             </button>
-            <Link href="/chat" className={cn("flex min-w-0 items-center gap-3 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring", collapsed && "hidden")}>
+            <Link href="/chat" className={cn("flex min-w-0 items-center gap-3 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring", collapsed && "md:hidden")}>
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                 <Music2 className="h-5 w-5 stroke-[1.75]" />
               </div>
@@ -290,9 +308,17 @@ export function Sidebar() {
                 <p className="mt-1 truncate text-[11px] text-muted-foreground">{tr("Virtuālais skolotājs")}</p>
               </div>
             </Link>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label={tr("Aizvērt sānu joslu")}
+              className="ml-auto rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:hidden"
+            >
+              <X className="h-5 w-5" aria-hidden="true" />
+            </button>
           </div>
 
-          <nav aria-label={tr("Galvenā navigācija")} className={cn("flex-1 space-y-6 overflow-y-auto px-3 py-2", collapsed && "hidden")}>
+          <nav aria-label={tr("Galvenā navigācija")} className={cn("flex-1 space-y-6 overflow-y-auto px-3 py-2", collapsed && "md:hidden")}>
             <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1" role="group" aria-label={tr("Skats")}>
               {(["student", "teacher"] as const).map((mode) => (
                 <button
@@ -341,7 +367,7 @@ export function Sidebar() {
                           aria-pressed={Boolean(chat.is_pinned)}
                           title={tr(chat.is_pinned ? "Atspraust sarunu" : "Piespraust sarunu")}
                           className={cn(
-                            "rounded-md p-1.5 opacity-0 transition-opacity hover:bg-muted focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group-hover:opacity-100",
+                            "rounded-md p-1.5 opacity-100 transition-opacity hover:bg-muted focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:opacity-0 group-hover:opacity-100",
                             pathname === `/chat/${chat.id}` ? "text-primary-foreground hover:bg-primary-foreground/20" : "text-muted-foreground hover:text-foreground"
                           )}
                         >
@@ -353,7 +379,7 @@ export function Sidebar() {
                           aria-label={`${tr("Dzēst sarunu")}: ${chat.title}`}
                           title={tr("Dzēst sarunu")}
                           className={cn(
-                            "rounded-md p-1.5 opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group-hover:opacity-100",
+                            "rounded-md p-1.5 opacity-100 transition-opacity hover:bg-destructive/10 hover:text-destructive focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:opacity-0 group-hover:opacity-100",
                             pathname === `/chat/${chat.id}` ? "text-primary-foreground hover:bg-primary-foreground/20 hover:text-primary-foreground" : "text-muted-foreground"
                           )}
                         >
@@ -446,7 +472,7 @@ export function Sidebar() {
           </nav>
         </div>
 
-        <div className={cn("space-y-3 border-t border-border bg-background/50 p-3", collapsed && "hidden")}>
+        <div className={cn("space-y-3 border-t border-border bg-background/50 p-3", collapsed && "md:hidden")}>
           <div className="rounded-lg border border-border bg-card p-3">
             <div className="mb-2 flex items-center justify-between text-xs">
               <span className="font-semibold">{tr("Līmenis")} {level.level}</span>
@@ -520,7 +546,7 @@ export function Sidebar() {
   );
 }
 
-function NavItem({ href, icon: Icon, label, active, compact = false, nested = false, title, className }: NavLinkEntry & { active: boolean; compact?: boolean; nested?: boolean; title?: string; className?: string }) {
+function NavItem({ href, icon: Icon, label, active, nested = false, title, className }: NavLinkEntry & { active: boolean; nested?: boolean; title?: string; className?: string }) {
   return (
     <Link
       href={href}
@@ -528,7 +554,7 @@ function NavItem({ href, icon: Icon, label, active, compact = false, nested = fa
       title={title ?? label}
       className={cn(
         "flex items-center gap-2.5 rounded-lg text-[13px] font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-        compact ? "shrink-0 px-3 py-2 text-xs" : nested ? "ml-1 px-2.5 py-1.5 text-xs" : "px-3 py-2",
+        nested ? "ml-1 px-2.5 py-1.5 text-xs" : "px-3 py-2",
         active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground",
         className
       )}

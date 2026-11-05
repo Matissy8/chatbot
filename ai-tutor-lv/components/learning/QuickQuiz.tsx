@@ -198,7 +198,7 @@ export function QuickQuiz() {
             <CardTitle className="text-xl">{tr(question.question)}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="flex flex-col gap-3 md:grid md:grid-cols-2">
               {optionOrder.map((originalIndex, index) => {
                 const option = question.options[originalIndex];
                 const selected = answer?.selected_option === originalIndex;
@@ -211,7 +211,7 @@ export function QuickQuiz() {
                     onClick={() => void submitAnswer(originalIndex)}
                     disabled={Boolean(answer) || busy}
                     aria-pressed={selected}
-                    className={`flex min-h-16 items-center justify-between gap-3 rounded-xl p-4 text-left font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default disabled:opacity-90 ${optionStyles[index]} ${correctChoice ? "ring-4 ring-emerald-300" : ""} ${incorrectChoice ? "ring-4 ring-rose-300" : ""}`}
+                    className={`flex min-h-[52px] items-center justify-between gap-3 rounded-xl p-4 text-left active:scale-[0.99] md:min-h-16 font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default disabled:opacity-90 ${optionStyles[index]} ${correctChoice ? "ring-4 ring-emerald-300" : ""} ${incorrectChoice ? "ring-4 ring-rose-300" : ""}`}
                   >
                     <span className="flex items-center gap-3"><span className="text-xs font-bold opacity-75">{String.fromCharCode(65 + index)}</span>{tr(option)}</span>
                     {correctChoice ? <Check className="h-5 w-5" /> : incorrectChoice ? <X className="h-5 w-5" /> : null}

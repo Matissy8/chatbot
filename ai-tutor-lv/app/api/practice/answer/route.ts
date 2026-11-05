@@ -29,7 +29,23 @@ async function handlePost(request: Request) {
   });
   if (error) {
     console.error("Practice answer check failed:", error);
-    return Response.json({ error: "Neizdevās pārbaudīt atbildi. Mēģinājums var būt beidzies." }, { status: 400 });
+    const message = error.message.toLowerCase();
+    const status = message.includes("not authorized")
+      ? 401
+      : /attempt not found|question not found/.test(message)
+        ? 404
+        : /attempt expired|answer selection out of bounds/.test(message)
+          ? 400
+          : 500;
+    return Response.json({
+      error: status === 401
+        ? "Sesija ir beigusies. Pieslēdzies vēlreiz."
+        : status === 404
+          ? "Jautājums vai mēģinājums nav atrasts."
+          : status === 400
+            ? "Mēģinājums ir beidzies vai atbilde nav derīga."
+            : "Servera kļūda datu saglabāšanā. Mēģini vēlreiz.",
+    }, { status });
   }
   const result = Array.isArray(data) ? data[0] : data;
   return Response.json(result);

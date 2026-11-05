@@ -42,7 +42,7 @@ export function AuthForm({
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-5">
+    <div className="flex min-h-[100dvh] items-center justify-center bg-background p-5">
       <Card className="w-full max-w-md border-border bg-card shadow-xl shadow-foreground/5">
         <CardHeader className="items-center pb-4 text-center">
           <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">

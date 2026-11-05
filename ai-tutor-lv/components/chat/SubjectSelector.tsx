@@ -32,13 +32,13 @@ export function SubjectSelector({
   }
 
   return (
-    <label className="flex items-center gap-2 text-xs text-muted-foreground">
-      <span>{translate(language, "Mācību priekšmets")}</span>
+    <label className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+      <span className="hidden sm:inline">{translate(language, "Mācību priekšmets")}</span>
       <select
         value={activeSubject}
         onChange={handleChange}
         aria-label={translate(language, "Mācību priekšmets")}
-        className="min-w-0 rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="w-full min-w-0 truncate rounded-md border border-border bg-background px-2 py-1.5 text-base text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:text-sm"
       >
         {availableSubjects.map((subject) => (
           <option key={subject.id} value={subject.id}>

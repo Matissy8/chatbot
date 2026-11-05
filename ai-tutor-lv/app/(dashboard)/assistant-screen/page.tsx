@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type ChangeEvent, type DragEvent } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { FileImage, FileSearch, LoaderCircle, Sparkles, Upload, X } from "lucide-react";
@@ -18,8 +19,9 @@ const acceptedExtensions = new Set(["jpg", "jpeg", "png", "webp", "gif", "pdf", 
 const assistantSubjects = ["Vispārīgs mācību uzdevums", "Matemātika", "Fizika", "Harmonija", "Solfedžo", "Cits"];
 
 export default function AssistantScreenPage() {
-  const { language } = useAppSession();
+  const { language, session } = useAppSession();
   const tr = (text: string) => translate(language, text);
+  const isGuest = Boolean(session?.isGuest);
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState("");
   const [subject, setSubject] = useState("Vispārīgs mācību uzdevums");
@@ -76,7 +78,7 @@ export default function AssistantScreenPage() {
   }
 
   async function analyzeFile() {
-    if (!file || loading) return;
+    if (isGuest || !file || loading) return;
     setLoading(true);
     setError("");
     setAnalysis("");
@@ -101,6 +103,14 @@ export default function AssistantScreenPage() {
         <h1 className="mt-1 text-3xl font-bold tracking-tight">{tr("Metodisko materiālu un uzdevumu analīze")}</h1>
         <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{tr("Augšupielādē skolas metodiskos materiālus, darba lapas vai grāmatas uzdevumu. Asistents analizēs saturu, izskaidros risinājumu un uzrādīs atsauces.")}</p>
       </header>
+      {isGuest && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-foreground" role="status">
+          {tr("AI rīki viesa režīmā pieejami tikai reģistrētiem lietotājiem.")}{" "}
+          <Link href="/register" className="font-semibold underline underline-offset-4">
+            {tr("Reģistrējies bez maksas")}
+          </Link>
+        </div>
+      )}
 
       <div className="grid items-start gap-5 lg:grid-cols-2">
         <Card className="border-border">
@@ -153,7 +163,7 @@ export default function AssistantScreenPage() {
             </div>
 
             {error && <p className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive" role="alert">{error}</p>}
-            <Button type="button" onClick={() => void analyzeFile()} disabled={!file || loading} className="w-full gap-2">
+            <Button type="button" onClick={() => void analyzeFile()} disabled={isGuest || !file || loading} className="w-full gap-2">
               {loading ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
               {tr(loading ? "Analizē materiālu…" : "Analizēt un izskaidrot")}
             </Button>

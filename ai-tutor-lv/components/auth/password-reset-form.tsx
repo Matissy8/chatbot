@@ -18,7 +18,7 @@ export function PasswordResetForm({ mode }: { mode: "request" | "update" }) {
   const [state, formAction, pending] = useActionState(isRequest ? requestPasswordReset : updatePassword, {});
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-5">
+    <div className="flex min-h-[100dvh] items-center justify-center bg-background p-5">
       <Card className="w-full max-w-md border-border bg-card shadow-xl shadow-foreground/5">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold tracking-tight text-foreground">

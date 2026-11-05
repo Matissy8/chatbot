@@ -100,13 +100,14 @@ export function ChatInterface({
   const [limit, setLimit] = useState<number | null>(null);
   const [selectedSubject, setSelectedSubject] = useState(initialSubject ?? "solfedzo");
   const scrollRef = useRef<HTMLDivElement>(null);
+  const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const busyRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
 
   useEffect(() => {
-    if (messages.length > 0 && scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    if (messages.length > 0) endRef.current?.scrollIntoView({ block: "end" });
   }, [messages, loading]);
 
   useEffect(() => () => {
@@ -182,6 +183,7 @@ export function ChatInterface({
         messages: nextMessages,
         chatId,
         subject,
+        language,
         signal: controller.signal,
         onText: (value) => {
           latest = value;
@@ -239,7 +241,7 @@ export function ChatInterface({
   }
 
   return (
-    <section className="relative flex h-full min-h-[480px] flex-col overflow-hidden bg-background">
+    <section className="relative flex h-full min-h-0 flex-col overflow-hidden bg-background md:min-h-[480px]">
       <header className="z-10 flex shrink-0 items-center justify-between border-b border-border bg-background/90 px-4 py-3 backdrop-blur sm:px-6">
         <div>
           <h1 className="text-[18px] font-semibold tracking-tight">{tr("Mācību dialogs")}</h1>
@@ -350,11 +352,12 @@ export function ChatInterface({
                 {tr("Asistents veido atbildi…")}
               </div>
             )}
+            <div ref={endRef} aria-hidden="true" />
           </div>
         )}
       </div>
 
-      <footer className="shrink-0 border-t border-border bg-background px-3 py-3 sm:px-6 sm:py-4">
+      <footer className="sticky bottom-0 z-10 shrink-0 border-t border-border bg-background/90 px-3 py-3 backdrop-blur sm:px-6 sm:py-4">
         <div className="mx-auto max-w-[768px]">
           <form onSubmit={handleSubmit} className="rounded-2xl border border-border bg-card p-2 shadow-sm focus-within:ring-2 focus-within:ring-ring/20">
             <Textarea
@@ -362,12 +365,13 @@ export function ChatInterface({
               value={input}
               onChange={(event) => setInput(event.target.value)}
               onKeyDown={handleInputKeyDown}
+              onFocus={() => window.setTimeout(() => endRef.current?.scrollIntoView({ block: "end" }), 300)}
               placeholder={tr("Ieraksti jautājumu šeit…")}
               aria-label={tr("Jautājums AI asistentam")}
               rows={1}
-              className="max-h-36 min-h-10 resize-none border-0 bg-transparent px-2 py-2 text-sm shadow-none focus-visible:ring-0"
+              className="max-h-36 min-h-10 resize-none border-0 bg-transparent px-2 py-2 text-base shadow-none focus-visible:ring-0 md:text-sm"
             />
-            <div className="flex items-center justify-between pt-1">
+            <div className="flex items-center justify-between gap-1 pt-1">
               <SubjectSelector selectedSubject={selectedSubject} onSelect={setSelectedSubject} gradeLevel={session?.grade ?? OPEN_GRADE_LEVEL} language={language} />
               <div className="flex items-center gap-1">
                 <Link
@@ -408,7 +412,7 @@ export function ChatInterface({
           {voiceError && <p className="mt-2 text-center text-xs text-destructive" role="alert">{voiceError}</p>}
           {messages.length === 0 && (
             <div className="mt-3 space-y-2">
-              <div className="flex flex-wrap justify-center gap-2" role="group" aria-label={tr("Mācību priekšmets")}>
+              <div className="hidden flex-wrap justify-center gap-2 sm:flex" role="group" aria-label={tr("Mācību priekšmets")}>
                 {MUSIC_SUBJECTS.filter((subject) => chipSubjectIds.includes(subject.id) && (session?.grade ?? OPEN_GRADE_LEVEL) >= subject.minGrade).map((subject) => {
                   const tone = subjectTone(subject.id);
                   const SubjectIcon = tone.icon;
@@ -429,13 +433,13 @@ export function ChatInterface({
                   );
                 })}
               </div>
-              <div className="flex flex-wrap justify-center gap-2">
+              <div className="-mx-3 flex gap-2 overflow-x-auto px-3 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:justify-center sm:overflow-visible sm:px-0">
                 {quickActions.map(({ label, prompt, icon: ActionIcon }) => (
                   <button
                     key={label}
                     type="button"
                     onClick={() => startFromPrompt(prompt)}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     <ActionIcon className="h-3.5 w-3.5 text-primary" aria-hidden="true" /> {tr(label)}
                   </button>

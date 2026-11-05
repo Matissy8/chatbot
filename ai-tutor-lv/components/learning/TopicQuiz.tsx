@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, type ChangeEvent } from "react";
+import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { ImagePlus, LoaderCircle, Send, X } from "lucide-react";
@@ -32,8 +33,9 @@ function readImage(file: File) {
 }
 
 export function TopicQuiz() {
-  const { language } = useAppSession();
+  const { language, session } = useAppSession();
   const tr = (text: string) => translate(language, text);
+  const isGuest = Boolean(session?.isGuest);
   const [turns, setTurns] = useState<Turn[]>([]);
   const [input, setInput] = useState("");
   const [image, setImage] = useState<{ name: string; dataUrl: string } | null>(null);
@@ -58,9 +60,10 @@ export function TopicQuiz() {
 
   async function send(text: string, attachedImage: string | null = null) {
     const content = text.trim();
-    if (!content || loading) return;
+    if (isGuest || !content || loading) return;
     const next: Turn[] = [...turns, { role: "user", content }];
     const imageForRequest = turns.length === 0 ? attachedImage : firstImage;
+    const previousImage = image;
     setTurns(next);
     setInput("");
     setImage(null);
@@ -78,6 +81,7 @@ export function TopicQuiz() {
     } catch (cause) {
       setTurns(turns);
       setInput(content);
+      setImage(previousImage);
       setError(tr(cause instanceof Error ? cause.message : "Neizdevās sagatavot viktorīnas atbildi."));
     } finally {
       setLoading(false);
@@ -98,6 +102,14 @@ export function TopicQuiz() {
 
   return (
     <div className="space-y-5">
+      {isGuest && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-foreground" role="status">
+          {tr("AI rīki viesa režīmā pieejami tikai reģistrētiem lietotājiem.")}{" "}
+          <Link href="/register" className="font-semibold underline underline-offset-4">
+            {tr("Reģistrējies bez maksas")}
+          </Link>
+        </div>
+      )}
       {turns.length === 0 ? (
         <>
           <Card className="border-border">
@@ -107,7 +119,7 @@ export function TopicQuiz() {
             </CardHeader>
             <CardContent className="flex flex-wrap gap-2">
               {readyTopicSets.map((set) => (
-                <Button key={set.label} type="button" variant="outline" disabled={loading} onClick={() => startWithSet(set)}>
+                <Button key={set.label} type="button" variant="outline" disabled={isGuest || loading} onClick={() => startWithSet(set)}>
                   {tr(set.label)}
                 </Button>
               ))}
@@ -129,8 +141,8 @@ export function TopicQuiz() {
               )}
               <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => void chooseImage(event)} className="sr-only" aria-label={tr("Pievienot attēlu")} />
               <div className="flex flex-wrap gap-2">
-                <Button type="button" variant="outline" className="gap-2" onClick={() => fileInputRef.current?.click()}><ImagePlus className="h-4 w-4" /> {tr("Pievienot attēlu")}</Button>
-                <Button type="button" className="gap-2" disabled={loading || (!input.trim() && !image)} onClick={() => void send(input.trim() || "Šis ir mans tēmu saraksts attēlā. Sāksim viktorīnu.", image?.dataUrl ?? null)}>
+                <Button type="button" variant="outline" className="gap-2" disabled={isGuest} onClick={() => fileInputRef.current?.click()}><ImagePlus className="h-4 w-4" /> {tr("Pievienot attēlu")}</Button>
+                <Button type="button" className="gap-2" disabled={isGuest || loading || (!input.trim() && !image)} onClick={() => void send(input.trim() || "Šis ir mans tēmu saraksts attēlā. Sāksim viktorīnu.", image?.dataUrl ?? null)}>
                   {loading ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} {tr("Sākt viktorīnu")}
                 </Button>
               </div>
@@ -152,7 +164,7 @@ export function TopicQuiz() {
             {loading && <div className="flex items-center gap-2 text-sm text-muted-foreground" role="status"><LoaderCircle className="h-4 w-4 animate-spin" /> {tr("Gatavoju atbildi…")}</div>}
             <form className="flex gap-2" onSubmit={(event) => { event.preventDefault(); void send(input); }}>
               <Textarea value={input} onChange={(event) => setInput(event.target.value)} maxLength={4000} rows={2} aria-label={tr("Mana atbilde")} placeholder={tr("Raksti savu atbildi…")} />
-              <Button type="submit" disabled={loading || !input.trim()} size="icon" aria-label={tr("Sūtīt")}><Send className="h-4 w-4" /></Button>
+              <Button type="submit" disabled={isGuest || loading || !input.trim()} size="icon" aria-label={tr("Sūtīt")}><Send className="h-4 w-4" /></Button>
             </form>
             <Button type="button" variant="ghost" size="sm" onClick={reset}>{tr("Sākt no jauna")}</Button>
           </CardContent>

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import Link from "next/link";
 import { Headphones, LoaderCircle, Play, Sparkles, Timer, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,8 +26,9 @@ const timerOptions: { seconds: number | null; label: string }[] = [
 type TimerState = "idle" | "running" | "expired";
 
 export default function AudioQuizPage() {
-  const { language } = useAppSession();
+  const { language, session } = useAppSession();
   const tr = (text: string) => translate(language, text);
+  const isGuest = Boolean(session?.isGuest);
   const [mode, setMode] = useState<"audio" | "topics">("audio");
 
   return (
@@ -35,14 +37,23 @@ export default function AudioQuizPage() {
         <Button type="button" size="sm" variant={mode === "audio" ? "default" : "outline"} aria-pressed={mode === "audio"} onClick={() => setMode("audio")}>{tr("Audio analīze")}</Button>
         <Button type="button" size="sm" variant={mode === "topics" ? "default" : "outline"} aria-pressed={mode === "topics"} onClick={() => setMode("topics")}>{tr("Tēmu viktorīna")}</Button>
       </div>
+      {isGuest && mode === "audio" && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-foreground" role="status">
+          {tr("AI rīki viesa režīmā pieejami tikai reģistrētiem lietotājiem.")}{" "}
+          <Link href="/register" className="font-semibold underline underline-offset-4">
+            {tr("Reģistrējies bez maksas")}
+          </Link>
+        </div>
+      )}
       {mode === "audio" ? <AudioAnalysis /> : <TopicQuiz />}
     </div>
   );
 }
 
 function AudioAnalysis() {
-  const { language } = useAppSession();
+  const { language, session } = useAppSession();
   const tr = (text: string) => translate(language, text);
+  const isGuest = Boolean(session?.isGuest);
   const [file, setFile] = useState<File | null>(null);
   const [audioUrl, setAudioUrl] = useState("");
   const [timerSeconds, setTimerSeconds] = useState<number | null>(null);
@@ -122,7 +133,7 @@ function AudioAnalysis() {
   }
 
   async function submit() {
-    if (!file || loading) return;
+    if (isGuest || !file || loading) return;
     const timedOut = timerState === "expired";
     setTimerState("idle");
     setLoading(true);
@@ -208,7 +219,7 @@ function AudioAnalysis() {
             </div>
 
             {error && <p className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive" role="alert">{error}</p>}
-            <Button type="button" onClick={() => void submit()} disabled={!file || loading} className="w-full gap-2">
+            <Button type="button" onClick={() => void submit()} disabled={isGuest || !file || loading} className="w-full gap-2">
               {loading ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
               {tr(loading ? "Analizē skaņdarbu…" : "Iesniegt un pārbaudīt")}
             </Button>
