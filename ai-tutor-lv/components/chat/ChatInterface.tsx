@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent, type UIEvent } from "react";
 import { useRouter } from "next/navigation";
 import {
   BarChart3,
@@ -101,6 +101,9 @@ export function ChatInterface({
   const [selectedSubject, setSelectedSubject] = useState(initialSubject ?? "solfedzo");
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const [isComposerHidden, setIsComposerHidden] = useState(false);
+  const lastScrollTop = useRef(0);
+  const ignoreScrollUntil = useRef(0);
   const busyRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
@@ -108,6 +111,35 @@ export function ChatInterface({
   useEffect(() => {
     if (messages.length > 0 && scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages, loading]);
+
+  // Programmatic scrolling and layout changes from the collapse animation must not toggle the composer.
+  function setComposerHidden(hidden: boolean) {
+    ignoreScrollUntil.current = Date.now() + 350;
+    setIsComposerHidden(hidden);
+  }
+
+  useEffect(() => {
+    ignoreScrollUntil.current = Date.now() + 350;
+  }, [messages.length, loading]);
+
+  function handleScroll(e: UIEvent<HTMLDivElement>) {
+    const currentScrollTop = e.currentTarget.scrollTop;
+    if (Date.now() < ignoreScrollUntil.current) {
+      lastScrollTop.current = currentScrollTop;
+      return;
+    }
+    const diff = currentScrollTop - lastScrollTop.current;
+
+    if (Math.abs(diff) < 8) return;
+
+    if (diff > 0 && currentScrollTop > 40) {
+      if (!isComposerHidden) setComposerHidden(true);
+    } else if (diff < 0) {
+      if (isComposerHidden) setComposerHidden(false);
+    }
+
+    lastScrollTop.current = currentScrollTop;
+  }
 
   useEffect(() => () => {
     abortRef.current?.abort();
@@ -261,7 +293,7 @@ export function ChatInterface({
         </Button>
       </header>
 
-      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6">
+      <div ref={scrollRef} onScroll={handleScroll} className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6">
         {messages.length === 0 ? (
           <div className="mx-auto flex max-w-4xl flex-col items-center py-7 text-center sm:py-12">
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-sm">
@@ -354,7 +386,17 @@ export function ChatInterface({
         )}
       </div>
 
-      <footer className="shrink-0 border-t border-border bg-background px-3 py-3 sm:px-6 sm:py-4">
+      <footer
+        onFocusCapture={() => {
+          if (isComposerHidden) setComposerHidden(false);
+        }}
+        className={cn(
+          "shrink-0 border-t border-border bg-background px-3 py-3 transition-all duration-300 ease-in-out sm:px-6 sm:py-4",
+          isComposerHidden
+            ? "pointer-events-none max-h-0 translate-y-full overflow-hidden border-transparent py-0 opacity-0 sm:py-0"
+            : "max-h-[420px] translate-y-0 opacity-100",
+        )}
+      >
         <div className="mx-auto max-w-[768px]">
           <form onSubmit={handleSubmit} className="rounded-2xl border border-border bg-card p-2 shadow-sm focus-within:ring-2 focus-within:ring-ring/20">
             <Textarea
