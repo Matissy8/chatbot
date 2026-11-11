@@ -5,7 +5,7 @@ export default async function ChatPage({ searchParams }: { searchParams: Promise
   const initialPrompt = Array.isArray(params.prompt) ? params.prompt[0] : params.prompt;
 
   return (
-    <div className="h-full min-h-0 w-full md:min-h-[480px]">
+    <div className="h-full min-h-0 w-full">
       <ChatInterface initialPrompt={initialPrompt?.slice(0, 500)} />
     </div>
   );

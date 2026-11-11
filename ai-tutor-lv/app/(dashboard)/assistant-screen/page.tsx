@@ -146,7 +146,7 @@ export default function AssistantScreenPage() {
                   <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} className="gap-2"><FileImage className="h-4 w-4" /> {tr("Izvēlēties failu")}</Button>
                 </>
               )}
-              <Input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown,.md" onChange={onFileChange} className="sr-only" aria-label={tr("Izvēlies materiāla failu")} />
+              <Input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown,.md" onChange={onFileChange} className="sr-only w-px! h-px!" aria-label={tr("Izvēlies materiāla failu")} />
             </div>
             <p className="text-xs text-gray-500 dark:text-gray-400">{tr("🔒 Fails tiek nosūtīts konfigurētajam AI pakalpojumam tikai analīzei un lietotnē netiek saglabāts. Pakalpojuma datu apstrādi nosaka tā privātuma politika. Augšupielādējiet materiālus atbilstoši skolas un autoru nosacījumiem.")}</p>
 

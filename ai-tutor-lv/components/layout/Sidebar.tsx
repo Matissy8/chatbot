@@ -78,8 +78,8 @@ const navGroups: { label: string; audience?: ViewMode; items: NavEntry[] }[] = [
         label: "Progresa ceļš",
         icon: TrendingUp,
         subItems: [
-          { href: "/learning-path", label: "Tavs mācību ceļš", icon: Map },
-          { href: "/progress", label: "Priekšmetu analīze", icon: TrendingUp },
+          { href: "/learning-path", label: "Mācību ceļvedis", icon: Map },
+          { href: "/progress", label: "Tavs progress", icon: TrendingUp },
           { href: "/achievements", label: "Sasniegumi", icon: BookOpen },
           { href: "/leaderboard", label: "Līderu saraksts", icon: Trophy },
         ],
@@ -128,14 +128,10 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
   const [deleteError, setDeleteError] = useState(false);
   const theme = useSyncExternalStore(subscribeTheme, getStoredTheme, getServerTheme);
   const [languageError, setLanguageError] = useState("");
-  const progressEntry = navGroups.find((group) => group.label === "Progresa ceļš")?.items[0];
-  const isProgressActive = progressEntry && "subItems" in progressEntry
-    ? progressEntry.subItems.some((item) => isPathActive(pathname, item.href))
-    : false;
   const [progressMenuState, setProgressMenuState] = useState<{ pathname: string; open: boolean } | null>(null);
   const isProgressOpen = progressMenuState?.pathname === pathname
     ? progressMenuState.open
-    : isProgressActive;
+    : true;
   const tr = (text: string) => translate(language, text);
   const xp = session?.xp ?? 0;
   const level = calculateLevel(xp);
@@ -273,7 +269,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
         <div
           onClick={onClose}
           aria-hidden="true"
-          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden print:hidden"
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden print:hidden"
         />
       )}
 
@@ -282,43 +278,43 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
           if ((event.target as HTMLElement).closest("a")) onClose();
         }}
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] select-none flex-col justify-between border-r border-border bg-sidebar-background transition-[transform,visibility,width] duration-300 ease-in-out md:static md:z-auto md:h-full md:max-w-none md:shrink-0 md:translate-x-0 md:duration-200 print:hidden!",
-          open ? "translate-x-0" : "-translate-x-full max-md:invisible",
-          collapsed ? "md:w-14" : "md:w-[240px]"
+          "fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] select-none flex-col justify-between border-r border-border bg-sidebar-background transition-[transform,visibility,width] duration-300           ease-in-out lg:static lg:z-auto lg:h-full lg:max-w-none lg:shrink-0 lg:translate-x-0 lg:duration-200 print:hidden!",
+                    open ? "translate-x-0" : "-translate-x-full max-lg:invisible",
+                    collapsed ? "lg:w-14" : "lg:w-[240px]"
         )}
       >
         <div className="flex min-h-0 flex-1 flex-col">
-          <div className={cn("flex items-center gap-2 p-4", collapsed && "md:justify-center md:px-2")}>
+          <div className={cn("flex items-center gap-2 p-4", collapsed && "lg:justify-center lg:px-2")}>
             <button
               type="button"
               onClick={toggleCollapsed}
               aria-label={tr(collapsed ? "Atvērt sānu joslu" : "Aizvērt sānu joslu")}
               aria-expanded={!collapsed}
               title={tr(collapsed ? "Atvērt sānu joslu" : "Aizvērt sānu joslu")}
-              className="hidden rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:block"
+              className="hidden rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:block"
             >
               <Menu className="h-5 w-5" aria-hidden="true" />
             </button>
-            <Link href="/chat" className={cn("flex min-w-0 items-center gap-3 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring", collapsed && "md:hidden")}>
+            <Link href="/chat" className={cn("flex min-w-0 items-center gap-3 rounded-lg outline-none focus-visible:ring-2             focus-visible:ring-ring", collapsed && "lg:hidden")}>
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                 <Music2 className="h-5 w-5 stroke-[1.75]" />
               </div>
               <div className="overflow-hidden">
                 <h1 className="text-base font-semibold leading-none tracking-tight text-foreground">Maestro</h1>
-                <p className="mt-1 truncate text-[11px] text-muted-foreground">{tr("Virtuālais skolotājs")}</p>
+                            <p className="mt-1 truncate text-xs text-muted-foreground">{tr("Virtuālais skolotājs")}</p>
               </div>
             </Link>
             <button
               type="button"
               onClick={onClose}
               aria-label={tr("Aizvērt sānu joslu")}
-              className="ml-auto rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:hidden"
+              className="ml-auto rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2               focus-visible:ring-ring lg:hidden"
             >
               <X className="h-5 w-5" aria-hidden="true" />
             </button>
           </div>
 
-          <nav aria-label={tr("Galvenā navigācija")} className={cn("flex-1 space-y-6 overflow-y-auto px-3 py-2", collapsed && "md:hidden")}>
+                        <nav aria-label={tr("Galvenā navigācija")} className={cn("flex-1 space-y-5 overflow-y-auto px-3 py-2", collapsed && "lg:hidden")}>
             <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1" role="group" aria-label={tr("Skats")}>
               {(["student", "teacher"] as const).map((mode) => (
                 <button
@@ -327,7 +323,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
                   aria-pressed={viewMode === mode}
                   onClick={() => selectViewMode(mode)}
                   className={cn(
-                    "rounded-md px-2 py-1.5 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    "rounded-md px-2 py-2.5 text-xs font-medium lg:py-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                     viewMode === mode ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                   )}
                 >
@@ -339,12 +335,12 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
               <Link
                 href="/chat"
                 aria-current={pathname === "/chat" ? "page" : undefined}
-                className="mb-2 flex items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-[13px] font-medium text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="mb-2 flex min-h-10 items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-[13px] font-medium text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <Plus className="h-4 w-4" />
                 {tr("Jauna saruna")}
               </Link>
-              <p className="px-3 pt-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              <p className="px-3 pt-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                 {tr("Pēdējās sarunas")}
               </p>
               {userChats.length > 0 ? (
@@ -367,7 +363,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
                           aria-pressed={Boolean(chat.is_pinned)}
                           title={tr(chat.is_pinned ? "Atspraust sarunu" : "Piespraust sarunu")}
                           className={cn(
-                            "rounded-md p-1.5 opacity-100 transition-opacity hover:bg-muted focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:opacity-0 group-hover:opacity-100",
+                            "rounded-md p-1.5 opacity-100 transition-opacity hover:bg-muted focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2                             focus-visible:ring-ring lg:opacity-0 group-hover:opacity-100",
                             pathname === `/chat/${chat.id}` ? "text-primary-foreground hover:bg-primary-foreground/20" : "text-muted-foreground hover:text-foreground"
                           )}
                         >
@@ -379,7 +375,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
                           aria-label={`${tr("Dzēst sarunu")}: ${chat.title}`}
                           title={tr("Dzēst sarunu")}
                           className={cn(
-                            "rounded-md p-1.5 opacity-100 transition-opacity hover:bg-destructive/10 hover:text-destructive focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:opacity-0 group-hover:opacity-100",
+                            "rounded-md p-1.5 opacity-100 transition-opacity hover:bg-destructive/10 hover:text-destructive focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2                             focus-visible:ring-ring lg:opacity-0 group-hover:opacity-100",
                             pathname === `/chat/${chat.id}` ? "text-primary-foreground hover:bg-primary-foreground/20 hover:text-primary-foreground" : "text-muted-foreground"
                           )}
                         >
@@ -406,7 +402,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
               return (
               <div key={group.label} className="space-y-1">
                 {!groupItems.some((item) => "subItems" in item) && (
-                  <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                  <p className="mb-1 px-3 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                     {tr(group.label)}
                   </p>
                 )}
@@ -472,54 +468,45 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
           </nav>
         </div>
 
-        <div className={cn("space-y-3 border-t border-border bg-background/50 p-3", collapsed && "md:hidden")}>
-          <div className="rounded-lg border border-border bg-card p-3">
-            <div className="mb-2 flex items-center justify-between text-xs">
+        <div className={cn("space-y-2 border-t border-border bg-background/50 p-3", collapsed && "lg:hidden")}>
+          <div className="rounded-lg border border-border bg-card px-3 py-2">
+            <div className="flex items-center justify-between text-xs">
               <span className="font-semibold">{tr("Līmenis")} {level.level}</span>
-              <span className="tabular-nums text-muted-foreground">{xp.toLocaleString("lv-LV")} XP</span>
+              <span className="tabular-nums text-muted-foreground">{level.currentLevelXp} / {level.nextLevelXp} XP</span>
             </div>
-            <Progress value={progress} className="h-1.5" />
-            <p className="mt-1.5 text-right text-[10px] text-muted-foreground">
-              {level.currentLevelXp} / {level.nextLevelXp} {tr("līdz nākamajam līmenim")}
-            </p>
+            <Progress value={progress} className="mt-1.5 h-1.5" aria-label={`${tr("Līmenis")} ${level.level}: ${xp.toLocaleString("lv-LV")} XP`} />
           </div>
 
-          <div className="flex items-center justify-between px-2 text-xs">
-            <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-              <Sun className="h-3.5 w-3.5" /> {tr("Tēma")}
-            </span>
+          <div className="flex items-center justify-between gap-2 px-1 text-xs">
             <button
               type="button"
               onClick={cycleTheme}
               aria-label={`${tr("Mainīt tēmu. Pašreizējā:")} ${tr(themeLabels[theme])}`}
-              className="flex items-center gap-1 rounded-md p-1.5 text-[11px] font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex min-h-10 items-center gap-1.5 rounded-md px-2 text-xs font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               {theme === "light" && <Sun className="h-3.5 w-3.5" />}
               {theme === "dark" && <Moon className="h-3.5 w-3.5" />}
               {theme === "contrast" && <Contrast className="h-3.5 w-3.5" />}
               {tr(themeLabels[theme])}
             </button>
-          </div>
-
-          <div className="flex items-center justify-between px-2 text-xs">
-            <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-              <Languages className="h-3.5 w-3.5" /> {tr("Valoda")}
-            </span>
-            <div className="flex gap-0.5 font-mono text-[10px]" aria-label={tr("Valodas izvēle")}>
-              {(["lv", "en", "ru"] as const).map((value) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => void selectLanguage(value)}
-                  aria-pressed={language === value}
-                  className={cn(
-                    "rounded px-1.5 py-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                    language === value ? "bg-primary font-bold text-primary-foreground" : "text-muted-foreground hover:bg-muted"
-                  )}
-                >
-                  {value.toUpperCase()}
-                </button>
-              ))}
+            <div className="flex items-center gap-1.5">
+              <Languages className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+              <div className="flex gap-0.5 font-mono text-xs" role="group" aria-label={tr("Valodas izvēle")}>
+                {(["lv", "en", "ru"] as const).map((value) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => void selectLanguage(value)}
+                    aria-pressed={language === value}
+                    className={cn(
+                      "min-h-10 rounded px-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:min-h-8",
+                      language === value ? "bg-primary font-bold text-primary-foreground" : "text-muted-foreground hover:bg-muted"
+                    )}
+                  >
+                    {value.toUpperCase()}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
           {languageError && <p className="px-2 text-xs text-destructive" role="alert">{languageError}</p>}
@@ -527,14 +514,14 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
           <div className="flex items-center justify-between border-t border-border pt-2">
             <Link href="/profile" className="min-w-0 rounded-md px-2 py-1 outline-none focus-visible:ring-2 focus-visible:ring-ring">
               <p className="truncate text-[13px] font-medium leading-tight">{session?.displayName ?? tr("Māceklis")}</p>
-              <p className="truncate text-[11px] text-muted-foreground">{session?.email ?? ""}</p>
+              <p className="truncate text-xs text-muted-foreground">{session?.email ?? ""}</p>
             </Link>
             <form action={signout}>
               <button
                 type="submit"
                 aria-label={tr("Iziet no konta")}
                 title={tr("Iziet")}
-                className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="rounded-lg p-3 text-muted-foreground transition-colors hover:bg-muted hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:p-2"
               >
                 <LogOut className="h-4 w-4" />
               </button>
@@ -554,7 +541,7 @@ function NavItem({ href, icon: Icon, label, active, nested = false, title, class
       title={title ?? label}
       className={cn(
         "flex items-center gap-2.5 rounded-lg text-[13px] font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-        nested ? "ml-1 px-2.5 py-1.5 text-xs" : "px-3 py-2",
+        nested ? "ml-1 px-2.5 py-2.5 text-xs lg:py-1.5" : "px-3 py-2.5 lg:py-2",
         active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground",
         className
       )}

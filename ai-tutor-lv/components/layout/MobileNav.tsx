@@ -14,10 +14,10 @@ const tabs: Tab[] = [
   { href: "/chat", label: "Saruna", icon: MessageSquare },
   { href: "/quiz", label: "Zibens", icon: Zap },
   { href: "/flashcards", label: "Kartītes", icon: Layers },
-  { href: "/learning-path", label: "Progress", icon: Map, matches: ["/learning-path", "/progress", "/achievements", "/leaderboard"] },
+  { href: "/learning-path", label: "Ceļvedis", icon: Map, matches: ["/learning-path", "/progress", "/achievements", "/leaderboard"] },
 ];
 
-const tabClass = "flex min-h-12 flex-1 flex-col items-center justify-center gap-1 rounded-lg px-1 py-1.5 text-[10px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+const tabClass = "flex min-h-12 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg px-1 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 export function MobileNav({ onOpenMenu }: { onOpenMenu: () => void }) {
   const pathname = usePathname();
@@ -27,7 +27,7 @@ export function MobileNav({ onOpenMenu }: { onOpenMenu: () => void }) {
   return (
     <nav
       aria-label={tr("Galvenā navigācija")}
-      className="flex shrink-0 items-stretch justify-around gap-1 border-t border-border bg-sidebar-background/95 px-2 pt-1 pb-[max(0.25rem,env(safe-area-inset-bottom))] backdrop-blur-lg md:hidden print:hidden"
+      className="flex shrink-0 items-stretch justify-around gap-1 border-t border-border bg-sidebar-background/95 px-2 pt-1 pb-[max(0.25rem,env(safe-area-inset-bottom))] backdrop-blur-lg lg:hidden [@media(max-height:450px)]:hidden print:hidden"
     >
       {tabs.map(({ href, label, icon: Icon, matches }) => {
         const active = (matches ?? [href]).some((path) => pathname === path || pathname.startsWith(`${path}/`));

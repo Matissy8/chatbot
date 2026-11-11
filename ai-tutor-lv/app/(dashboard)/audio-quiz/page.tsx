@@ -188,7 +188,7 @@ function AudioAnalysis() {
                 <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} className="gap-2"><Upload className="h-4 w-4" /> {tr("Izvēlēties failu")}</Button>
               </div>
             )}
-            <Input ref={fileInputRef} type="file" accept="audio/mpeg,audio/wav,audio/ogg,audio/flac,audio/aac,audio/aiff,.mp3,.wav,.ogg,.flac,.aac,.aiff,.aif" onChange={onFileChange} className="sr-only" aria-label={tr("Izvēlies audio failu")} />
+            <Input ref={fileInputRef} type="file" accept="audio/mpeg,audio/wav,audio/ogg,audio/flac,audio/aac,audio/aiff,.mp3,.wav,.ogg,.flac,.aac,.aiff,.aif" onChange={onFileChange} className="sr-only w-px! h-px!" aria-label={tr("Izvēlies audio failu")} />
             <p className="text-xs text-muted-foreground">{tr("🔒 Audio fails tiek nosūtīts konfigurētajam AI pakalpojumam tikai analīzei un lietotnē netiek saglabāts. Izmanto materiālus atbilstoši skolas un autortiesību nosacījumiem.")}</p>
 
             <fieldset className="space-y-2">

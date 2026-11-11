@@ -190,6 +190,12 @@
     background: hsl(var(--primary));
     color: hsl(var(--primary-foreground));
   }
+
+  @media (max-width: 1023px) {
+    * {
+      scrollbar-width: thin;
+    }
+  }
 }
 
 @media print {

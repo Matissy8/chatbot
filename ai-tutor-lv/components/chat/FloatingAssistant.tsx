@@ -81,7 +81,7 @@ export function FloatingAssistant() {
   }
 
   return (
-    <div className="fixed bottom-20 right-4 z-50 sm:right-5 md:bottom-5 print:hidden">
+    <div className="fixed bottom-20 right-4 z-30 sm:right-5 lg:bottom-5 [@media(max-height:450px)]:hidden print:hidden">
       <LimitReachedModal open={limit !== null} onOpenChange={(open) => !open && setLimit(null)} limit={limit || undefined} />
       {!isOpen ? (
         <Button
@@ -107,7 +107,7 @@ export function FloatingAssistant() {
               </div>
               <div>
                 <p className="text-[13px] font-semibold leading-none">{tr("Ātrais palīgs")}</p>
-                <p className="mt-1 text-[11px] text-muted-foreground">{tr("Mācību atbalsts vienmēr pa rokai")}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{tr("Mācību atbalsts vienmēr pa rokai")}</p>
               </div>
             </div>
             <div className="flex items-center gap-1">

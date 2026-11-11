@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent, type UIEvent } from "react";
 import { useRouter } from "next/navigation";
 import {
   BarChart3,
@@ -14,9 +14,9 @@ import {
   Map,
   Mic,
   Music2,
-  Plus,
   Send,
   Sigma,
+  SlidersHorizontal,
   Sparkles,
   Zap,
 } from "lucide-react";
@@ -102,6 +102,10 @@ export function ChatInterface({
   const scrollRef = useRef<HTMLDivElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const [isComposerHidden, setIsComposerHidden] = useState(false);
+  const [optionsOpen, setOptionsOpen] = useState(false);
+  const lastScrollTop = useRef(0);
+  const ignoreScrollUntil = useRef(0);
   const busyRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
@@ -110,10 +114,51 @@ export function ChatInterface({
     if (messages.length > 0) endRef.current?.scrollIntoView({ block: "end" });
   }, [messages, loading]);
 
+  // Programmatic scrolling and layout changes from the collapse animation must not toggle the composer.
+  function setComposerHidden(hidden: boolean) {
+    ignoreScrollUntil.current = Date.now() + 350;
+    setIsComposerHidden(hidden);
+  }
+
+  useEffect(() => {
+    ignoreScrollUntil.current = Date.now() + 350;
+  }, [messages.length, loading]);
+
+  function handleScroll(e: UIEvent<HTMLDivElement>) {
+    const currentScrollTop = e.currentTarget.scrollTop;
+    if (Date.now() < ignoreScrollUntil.current) {
+      lastScrollTop.current = currentScrollTop;
+      return;
+    }
+    const diff = currentScrollTop - lastScrollTop.current;
+
+    if (Math.abs(diff) < 8) return;
+
+    if (diff > 0 && currentScrollTop > 40) {
+      if (!isComposerHidden) setComposerHidden(true);
+    } else if (diff < 0) {
+      if (isComposerHidden) setComposerHidden(false);
+    }
+
+    lastScrollTop.current = currentScrollTop;
+  }
+
   useEffect(() => () => {
     abortRef.current?.abort();
     recognitionRef.current?.stop();
   }, []);
+
+  // The "new chat" button lives in the dashboard header, so it reaches the conversation through a window event.
+  useEffect(() => {
+    const startNewConversation = () => {
+      if (loading || messages.length === 0) return;
+      setMessages([]);
+      setChatId(undefined);
+      router.push("/chat");
+    };
+    window.addEventListener("chat-new-conversation", startNewConversation);
+    return () => window.removeEventListener("chat-new-conversation", startNewConversation);
+  }, [loading, messages.length, router]);
 
   function toggleVoiceInput() {
     if (isRecording) {
@@ -241,29 +286,9 @@ export function ChatInterface({
   }
 
   return (
-    <section className="relative flex h-full min-h-0 flex-col overflow-hidden bg-background md:min-h-[480px]">
-      <header className="z-10 flex shrink-0 items-center justify-between border-b border-border bg-background/90 px-4 py-3 backdrop-blur sm:px-6">
-        <div>
-          <h1 className="text-[18px] font-semibold tracking-tight">{tr("Mācību dialogs")}</h1>
-          <p className="mt-0.5 text-xs text-muted-foreground">{tr("Uzdod jautājumu par mūzikas skolas priekšmetiem — solfedžo, teoriju, mūzikas literatūru un citiem.")}</p>
-        </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            setMessages([]);
-            setChatId(undefined);
-            router.push("/chat");
-          }}
-          disabled={messages.length === 0 || loading}
-          className="gap-1.5"
-        >
-          <Plus className="h-3.5 w-3.5" /> {tr("Jauna saruna")}
-        </Button>
-      </header>
-
-      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6">
+    <section className="relative flex h-full min-h-0 flex-col overflow-hidden bg-background lg:min-h-[480px]">
+      <h1 className="sr-only">{tr("Mācību dialogs")}</h1>
+      <div ref={scrollRef} onScroll={handleScroll} className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6">
         {messages.length === 0 ? (
           <div className="mx-auto flex max-w-4xl flex-col items-center py-7 text-center sm:py-12">
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-sm">
@@ -331,7 +356,7 @@ export function ChatInterface({
                         type="button"
                         onClick={() => void sendMessage(`${tr("Pastāsti par")} ${tr(subject.name)} ${tr("pamatiem")}`, subject.id)}
                         disabled={loading}
-                        className="mt-3 self-start text-xs font-semibold underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                        className="mt-1 inline-flex min-h-10 items-center self-start text-xs font-semibold underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
                       >
                         {tr("Atvērt")} →
                       </button>
@@ -357,62 +382,86 @@ export function ChatInterface({
         )}
       </div>
 
-      <footer className="sticky bottom-0 z-10 shrink-0 border-t border-border bg-background/90 px-3 py-3 backdrop-blur sm:px-6 sm:py-4">
+      <footer
+        onFocusCapture={() => {
+          if (isComposerHidden) setComposerHidden(false);
+        }}
+        className={cn(
+          "sticky bottom-0 z-10 shrink-0 border-t border-border bg-background/90 px-3 py-3 backdrop-blur transition-all duration-300 ease-in-out sm:px-6 sm:py-4",
+          isComposerHidden
+            ? "pointer-events-none max-h-0 translate-y-full overflow-hidden border-transparent py-0 opacity-0 sm:py-0"
+            : "max-h-[560px] translate-y-0 opacity-100",
+        )}
+      >
         <div className="mx-auto max-w-[768px]">
           <form onSubmit={handleSubmit} className="rounded-2xl border border-border bg-card p-2 shadow-sm focus-within:ring-2 focus-within:ring-ring/20">
-            <Textarea
-              ref={inputRef}
-              value={input}
-              onChange={(event) => setInput(event.target.value)}
-              onKeyDown={handleInputKeyDown}
-              onFocus={() => window.setTimeout(() => endRef.current?.scrollIntoView({ block: "end" }), 300)}
-              placeholder={tr("Ieraksti jautājumu šeit…")}
-              aria-label={tr("Jautājums AI asistentam")}
-              rows={1}
-              className="max-h-36 min-h-10 resize-none border-0 bg-transparent px-2 py-2 text-base shadow-none focus-visible:ring-0 md:text-sm"
-            />
-            <div className="flex items-center justify-between gap-1 pt-1">
-              <SubjectSelector selectedSubject={selectedSubject} onSelect={setSelectedSubject} gradeLevel={session?.grade ?? OPEN_GRADE_LEVEL} language={language} />
-              <div className="flex items-center gap-1">
-                <Link
-                  href="/assistant-screen"
-                  aria-label={tr("Pievienot foto")}
-                  title={tr("Pievienot foto")}
-                  className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "h-11 w-11 rounded-xl text-muted-foreground hover:text-foreground")}
+            <div className="flex items-end gap-1">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label={tr("Ieteikumi un priekšmets")}
+                title={tr("Ieteikumi un priekšmets")}
+                aria-expanded={optionsOpen}
+                onClick={() => setOptionsOpen((value) => !value)}
+                className={cn("h-11 w-11 shrink-0 rounded-xl text-muted-foreground hover:text-foreground [@media(max-height:450px)]:hidden", optionsOpen && "bg-muted text-foreground")}
+              >
+                <SlidersHorizontal className="h-5 w-5 stroke-[1.75]" />
+              </Button>
+              <Textarea
+                ref={inputRef}
+                value={input}
+                onChange={(event) => setInput(event.target.value)}
+                onKeyDown={handleInputKeyDown}
+                onFocus={() => window.setTimeout(() => endRef.current?.scrollIntoView({ block: "end" }), 300)}
+                placeholder={tr("Ieraksti jautājumu šeit…")}
+                aria-label={tr("Jautājums AI asistentam")}
+                rows={1}
+                className="max-h-36 min-h-11 min-w-0 flex-1 resize-none border-0 bg-transparent px-2 py-2.5 text-base shadow-none focus-visible:ring-0 lg:text-sm"
+              />
+              {voiceSupported && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  aria-label={tr(isRecording ? "Apturēt balss ievadi" : "Balss ievade")}
+                  aria-pressed={isRecording}
+                  title={tr("Balss ievade")}
+                  onClick={toggleVoiceInput}
+                  className={isRecording ? "h-11 w-11 shrink-0 rounded-xl bg-muted text-foreground" : "h-11 w-11 shrink-0 rounded-xl text-muted-foreground hover:text-foreground"}
                 >
-                  <Camera className="h-5 w-5 stroke-[1.75]" />
-                </Link>
-                {voiceSupported && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    aria-label={tr(isRecording ? "Apturēt balss ievadi" : "Balss ievade")}
-                    aria-pressed={isRecording}
-                    title={tr("Balss ievade")}
-                    onClick={toggleVoiceInput}
-                    className={isRecording ? "h-11 w-11 rounded-xl bg-muted text-foreground" : "h-11 w-11 rounded-xl text-muted-foreground hover:text-foreground"}
-                  >
-                    <Mic className="h-5 w-5 stroke-[1.75]" />
-                  </Button>
-                )}
-                {isRecording && <span className="ml-1 text-xs text-muted-foreground" role="status">{tr("Balss režīms")}</span>}
-              </div>
+                  <Mic className="h-5 w-5 stroke-[1.75]" />
+                </Button>
+              )}
               <Button
                 type="submit"
                 size="icon"
                 aria-label={tr("Nosūtīt ziņu")}
                 disabled={loading || !input.trim()}
-                className="h-11 w-11 rounded-xl bg-primary text-primary-foreground hover:bg-primary/85"
+                className="h-11 w-11 shrink-0 rounded-xl bg-primary text-primary-foreground hover:bg-primary/85"
               >
                 <Send className="h-4 w-4 stroke-[1.75]" />
               </Button>
             </div>
+            {isRecording && <p className="px-2 pt-1 text-xs text-muted-foreground" role="status">{tr("Balss režīms")}</p>}
+            {optionsOpen && (
+              <div className="mt-2 flex items-center justify-between gap-2 border-t border-border pt-2 [@media(max-height:450px)]:hidden">
+                <SubjectSelector selectedSubject={selectedSubject} onSelect={setSelectedSubject} gradeLevel={session?.grade ?? OPEN_GRADE_LEVEL} language={language} />
+                <Link
+                  href="/assistant-screen"
+                  aria-label={tr("Pievienot foto")}
+                  title={tr("Pievienot foto")}
+                  className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "h-11 w-11 shrink-0 rounded-xl text-muted-foreground hover:text-foreground")}
+                >
+                  <Camera className="h-5 w-5 stroke-[1.75]" />
+                </Link>
+              </div>
+            )}
           </form>
           {voiceError && <p className="mt-2 text-center text-xs text-destructive" role="alert">{voiceError}</p>}
-          {messages.length === 0 && (
-            <div className="mt-3 space-y-2">
-              <div className="hidden flex-wrap justify-center gap-2 sm:flex" role="group" aria-label={tr("Mācību priekšmets")}>
+          {messages.length === 0 && optionsOpen && (
+            <div className="mt-3 space-y-2 [@media(max-height:450px)]:hidden">
+              <div className="flex flex-wrap justify-center gap-2" role="group" aria-label={tr("Mācību priekšmets")}>
                 {MUSIC_SUBJECTS.filter((subject) => chipSubjectIds.includes(subject.id) && (session?.grade ?? OPEN_GRADE_LEVEL) >= subject.minGrade).map((subject) => {
                   const tone = subjectTone(subject.id);
                   const SubjectIcon = tone.icon;
@@ -433,7 +482,7 @@ export function ChatInterface({
                   );
                 })}
               </div>
-              <div className="-mx-3 flex gap-2 overflow-x-auto px-3 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:justify-center sm:overflow-visible sm:px-0">
+              <div className="-mx-3 flex gap-2 overflow-x-auto px-3 pb-1 [mask-image:linear-gradient(to_right,black_calc(100%-32px),transparent)] [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:justify-center sm:overflow-visible sm:px-0 sm:[mask-image:none]">
                 {quickActions.map(({ label, prompt, icon: ActionIcon }) => (
                   <button
                     key={label}
@@ -447,7 +496,7 @@ export function ChatInterface({
               </div>
             </div>
           )}
-          <p className="mt-2 text-center text-[10px] text-muted-foreground">
+          <p className={cn("mt-2 text-center text-xs text-muted-foreground [@media(max-height:450px)]:hidden", !optionsOpen && "max-sm:hidden")}>
             {tr("Pārbaudi svarīgu informāciju un izmanto atbildes kā mācību atbalstu.")}
           </p>
         </div>

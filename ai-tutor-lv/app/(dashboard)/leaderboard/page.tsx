@@ -103,7 +103,7 @@ export default function LeaderboardPage() {
         <Card className="border-border bg-card shadow-sm">
           <CardContent className="flex items-center gap-3 p-3">
             <div className="text-right">
-              <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{tr("Tava vieta")}</p>
+              <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{tr("Tava vieta")}</p>
               <p className="font-bold text-foreground">{viewer ? `#${viewer.rank}` : "—"}</p>
             </div>
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-sm font-semibold text-foreground">
@@ -116,7 +116,7 @@ export default function LeaderboardPage() {
       <Tabs value={selectedPeriod} onValueChange={(value) => { setLoading(true); setError(""); setSelectedPeriod(value as RankingPeriod); }} className="w-full">
         <TabsList className="mb-6 flex h-auto w-full flex-wrap justify-start gap-1 bg-muted p-1 sm:w-fit">
           {periods.map((period) => (
-            <TabsTrigger key={period.value} value={period.value} className="px-3 py-2">
+            <TabsTrigger key={period.value} value={period.value} className="px-3 py-2 max-lg:min-h-10">
               {tr(period.label)}
             </TabsTrigger>
           ))}
