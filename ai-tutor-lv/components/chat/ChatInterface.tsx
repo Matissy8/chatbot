@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent, type UIEvent } from "react";
+import Image from "next/image";
+import { useEffect, useRef, useState, useSyncExternalStore, type ChangeEvent, type FormEvent, type KeyboardEvent, type UIEvent } from "react";
 import { useRouter } from "next/navigation";
 import {
   BarChart3,
@@ -18,9 +19,10 @@ import {
   Send,
   Sigma,
   Sparkles,
+  X,
   Zap,
 } from "lucide-react";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ChatMessage } from "@/components/chat/ChatMessage";
 import { LimitReachedModal } from "@/components/chat/LimitReachedModal";
@@ -36,6 +38,13 @@ import { subjectTone } from "@/lib/subject-styles";
 
 // Accounts without a grade (teachers, independent learners, guests) can see every subject.
 const OPEN_GRADE_LEVEL = 12;
+const MAX_IMAGE_SIZE_BYTES = 8 * 1024 * 1024;
+const IMAGE_ONLY_PROMPTS = {
+  lv: "Izanalizē pievienoto attēlu.",
+  en: "Please analyze the attached image.",
+  ru: "Проанализируй прикреплённое изображение.",
+} as const;
+const SUPPORTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"] as const;
 
 const quickActions = [
   { label: "Izskaidro vienkārši", prompt: "Izskaidro vienkārši: ", icon: Lightbulb },
@@ -93,6 +102,8 @@ export function ChatInterface({
   const [chatId, setChatId] = useState(initialChatId);
   const [messages, setMessages] = useState<ChatMessageData[]>(initialMessages);
   const [input, setInput] = useState(initialPrompt ?? "");
+  const [selectedImage, setSelectedImage] = useState<{ name: string; data: string; mediaType: typeof SUPPORTED_IMAGE_TYPES[number] } | null>(null);
+  const [attachmentError, setAttachmentError] = useState("");
   const [loading, setLoading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [voiceError, setVoiceError] = useState("");
@@ -100,7 +111,9 @@ export function ChatInterface({
   const [limit, setLimit] = useState<number | null>(null);
   const [selectedSubject, setSelectedSubject] = useState(initialSubject ?? "solfedzo");
   const scrollRef = useRef<HTMLDivElement>(null);
+  const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const [isComposerHidden, setIsComposerHidden] = useState(false);
   const lastScrollTop = useRef(0);
   const ignoreScrollUntil = useRef(0);
@@ -109,7 +122,7 @@ export function ChatInterface({
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
 
   useEffect(() => {
-    if (messages.length > 0 && scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    if (messages.length > 0) endRef.current?.scrollIntoView({ block: "end" });
   }, [messages, loading]);
 
   // Programmatic scrolling and layout changes from the collapse animation must not toggle the composer.
@@ -187,15 +200,54 @@ export function ChatInterface({
     return MUSIC_SUBJECTS.some((subject) => subject.id === subjectId && gradeLevel >= subject.minGrade) ? subjectId : selectedSubject;
   }
 
+  async function handleImageSelection(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    setAttachmentError("");
+    if (!file) return;
+    if (!SUPPORTED_IMAGE_TYPES.includes(file.type as typeof SUPPORTED_IMAGE_TYPES[number])) {
+      setAttachmentError(tr("Attēlam jābūt JPG, PNG, WebP vai GIF formātā."));
+      return;
+    }
+    if (file.size === 0 || file.size > MAX_IMAGE_SIZE_BYTES) {
+      setAttachmentError(tr("Attēlam jābūt mazākam par 8 MB."));
+      return;
+    }
+
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = () => reject(new Error("Neizdevās nolasīt attēlu."));
+        reader.onload = () => typeof reader.result === "string" ? resolve(reader.result) : reject(new Error("Neizdevās nolasīt attēlu."));
+        reader.readAsDataURL(file);
+      });
+      setSelectedImage({
+        name: file.name,
+        data: dataUrl.slice(dataUrl.indexOf(",") + 1),
+        mediaType: file.type as typeof SUPPORTED_IMAGE_TYPES[number],
+      });
+    } catch (error) {
+      setAttachmentError(tr(error instanceof Error ? error.message : "Neizdevās nolasīt attēlu."));
+    }
+  }
+
   async function sendMessage(text: string, subject = selectedSubject) {
-    const trimmed = text.trim();
+    const image = selectedImage;
+    const trimmed = text.trim() || (image ? IMAGE_ONLY_PROMPTS[language] : "");
     // The ref blocks double submits that happen before React re-renders the disabled state.
     if (!trimmed || busyRef.current) return;
     busyRef.current = true;
     recognitionRef.current?.stop();
     setSelectedSubject(subject);
 
-    const nextMessages: ChatMessageData[] = [...messages, { role: "user", content: trimmed }];
+    const nextMessages: ChatMessageData[] = [
+      ...messages,
+      {
+        role: "user",
+        content: trimmed,
+        ...(image ? { image: { data: image.data, mediaType: image.mediaType } } : {}),
+      },
+    ];
     setMessages([...nextMessages, { role: "assistant", content: "" }]);
     setInput("");
     setLoading(true);
@@ -214,6 +266,7 @@ export function ChatInterface({
         messages: nextMessages,
         chatId,
         subject,
+        language,
         signal: controller.signal,
         onText: (value) => {
           latest = value;
@@ -223,6 +276,8 @@ export function ChatInterface({
       if (frame !== null) cancelAnimationFrame(frame);
       setMessages([...nextMessages, { role: "assistant", content: result.text }]);
       setChatId(result.chatId);
+      if (image) setSelectedImage(null);
+      setAttachmentError("");
 
       void refreshSession().catch(() => undefined);
       if (result.chatId && result.chatId !== chatId) {
@@ -271,7 +326,7 @@ export function ChatInterface({
   }
 
   return (
-    <section className="relative flex h-full min-h-[480px] flex-col overflow-hidden bg-background">
+    <section className="relative flex h-full min-h-0 flex-col overflow-hidden bg-background md:min-h-[480px]">
       <header className="z-10 flex shrink-0 items-center justify-between border-b border-border bg-background/90 px-4 py-3 backdrop-blur sm:px-6">
         <div>
           <h1 className="text-[18px] font-semibold tracking-tight">{tr("Mācību dialogs")}</h1>
@@ -382,6 +437,7 @@ export function ChatInterface({
                 {tr("Asistents veido atbildi…")}
               </div>
             )}
+            <div ref={endRef} aria-hidden="true" />
           </div>
         )}
       </div>
@@ -391,7 +447,7 @@ export function ChatInterface({
           if (isComposerHidden) setComposerHidden(false);
         }}
         className={cn(
-          "shrink-0 border-t border-border bg-background px-3 py-3 transition-all duration-300 ease-in-out sm:px-6 sm:py-4",
+          "sticky bottom-0 z-10 shrink-0 border-t border-border bg-background/90 px-3 py-3 backdrop-blur transition-all duration-300 ease-in-out sm:px-6 sm:py-4",
           isComposerHidden
             ? "pointer-events-none max-h-0 translate-y-full overflow-hidden border-transparent py-0 opacity-0 sm:py-0"
             : "max-h-[420px] translate-y-0 opacity-100",
@@ -399,27 +455,62 @@ export function ChatInterface({
       >
         <div className="mx-auto max-w-[768px]">
           <form onSubmit={handleSubmit} className="rounded-2xl border border-border bg-card p-2 shadow-sm focus-within:ring-2 focus-within:ring-ring/20">
+            {selectedImage && (
+              <div className="mb-2 flex items-center gap-2 rounded-xl bg-muted/50 p-2">
+                <Image
+                  src={`data:${selectedImage.mediaType};base64,${selectedImage.data}`}
+                  alt={selectedImage.name}
+                  width={56}
+                  height={56}
+                  unoptimized
+                  className="h-14 w-14 rounded-lg object-cover"
+                />
+                <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">{selectedImage.name}</span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  aria-label={tr("Noņemt attēlu")}
+                  onClick={() => setSelectedImage(null)}
+                  className="h-9 w-9 shrink-0"
+                >
+                  <X className="h-4 w-4" aria-hidden="true" />
+                </Button>
+              </div>
+            )}
             <Textarea
               ref={inputRef}
               value={input}
               onChange={(event) => setInput(event.target.value)}
               onKeyDown={handleInputKeyDown}
+              onFocus={() => window.setTimeout(() => endRef.current?.scrollIntoView({ block: "end" }), 300)}
               placeholder={tr("Ieraksti jautājumu šeit…")}
               aria-label={tr("Jautājums AI asistentam")}
               rows={1}
-              className="max-h-36 min-h-10 resize-none border-0 bg-transparent px-2 py-2 text-sm shadow-none focus-visible:ring-0"
+              className="max-h-36 min-h-10 resize-none border-0 bg-transparent px-2 py-2 text-base shadow-none focus-visible:ring-0 md:text-sm"
             />
-            <div className="flex items-center justify-between pt-1">
+            <div className="flex items-center justify-between gap-1 pt-1">
               <SubjectSelector selectedSubject={selectedSubject} onSelect={setSelectedSubject} gradeLevel={session?.grade ?? OPEN_GRADE_LEVEL} language={language} />
               <div className="flex items-center gap-1">
-                <Link
-                  href="/assistant-screen"
+                <input
+                  ref={imageInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  className="hidden"
+                  onChange={(event) => void handleImageSelection(event)}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  disabled={loading}
+                  onClick={() => imageInputRef.current?.click()}
                   aria-label={tr("Pievienot foto")}
                   title={tr("Pievienot foto")}
-                  className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "h-11 w-11 rounded-xl text-muted-foreground hover:text-foreground")}
+                  className="h-11 w-11 rounded-xl text-muted-foreground hover:text-foreground"
                 >
                   <Camera className="h-5 w-5 stroke-[1.75]" />
-                </Link>
+                </Button>
                 {voiceSupported && (
                   <Button
                     type="button"
@@ -440,17 +531,18 @@ export function ChatInterface({
                 type="submit"
                 size="icon"
                 aria-label={tr("Nosūtīt ziņu")}
-                disabled={loading || !input.trim()}
+                disabled={loading || (!input.trim() && !selectedImage)}
                 className="h-11 w-11 rounded-xl bg-primary text-primary-foreground hover:bg-primary/85"
               >
                 <Send className="h-4 w-4 stroke-[1.75]" />
               </Button>
             </div>
           </form>
+          {attachmentError && <p className="mt-2 text-center text-xs text-destructive" role="alert">{attachmentError}</p>}
           {voiceError && <p className="mt-2 text-center text-xs text-destructive" role="alert">{voiceError}</p>}
           {messages.length === 0 && (
             <div className="mt-3 space-y-2">
-              <div className="flex flex-wrap justify-center gap-2" role="group" aria-label={tr("Mācību priekšmets")}>
+              <div className="hidden flex-wrap justify-center gap-2 sm:flex" role="group" aria-label={tr("Mācību priekšmets")}>
                 {MUSIC_SUBJECTS.filter((subject) => chipSubjectIds.includes(subject.id) && (session?.grade ?? OPEN_GRADE_LEVEL) >= subject.minGrade).map((subject) => {
                   const tone = subjectTone(subject.id);
                   const SubjectIcon = tone.icon;
@@ -471,13 +563,13 @@ export function ChatInterface({
                   );
                 })}
               </div>
-              <div className="flex flex-wrap justify-center gap-2">
+              <div className="-mx-3 flex gap-2 overflow-x-auto px-3 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:justify-center sm:overflow-visible sm:px-0">
                 {quickActions.map(({ label, prompt, icon: ActionIcon }) => (
                   <button
                     key={label}
                     type="button"
                     onClick={() => startFromPrompt(prompt)}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     <ActionIcon className="h-3.5 w-3.5 text-primary" aria-hidden="true" /> {tr(label)}
                   </button>

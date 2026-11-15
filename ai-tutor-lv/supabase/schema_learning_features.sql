@@ -349,7 +349,22 @@ begin
     'allegro', 'andante', 'forte', 'piano', 'crescendo',
     'diminuendo', 'staccato', 'legato', 'perfect-fifth', 'dominant-seventh',
     'note-h-b', 'enharmonism', 'tritone', 'thirds', 'd7-inversions',
-    'vii7-dim', 'tempo-rubato', 'smorzando', 'darzins-valsis'
+    'vii7-dim', 'tempo-rubato', 'smorzando', 'darzins-valsis',
+    'skanurinda', 'diezs', 'bemols', 'bekars', 'dubultdiezs',
+    'dubultbemols', 'diatonic-semitone', 'chromatic-semitone', 'sinkope', 'triole',
+    'kvartole', 'kvintole', 'uztakts', 'jauktie-taktsmeri', 'alla-breve',
+    'paralelas-tonalitates', 'vienvarda-tonalitates', 'harmonic-major', 'harmonic-minor', 'melodic-minor',
+    'pentatonika', 'dorian', 'phrygian', 'lydian', 'mixolydian',
+    'raksturigie-intervali', 'intervala-apversums', 'konsonanse', 'disonanse', 'nona',
+    'decima', 'transpozicija', 'sekvence', 'alta-tenora-atslegas', 'grave-largo',
+    'adagio-andante', 'moderato-allegretto', 'allegro-vivace-presto', 'accelerando-stringendo', 'ritardando-rallentando',
+    'sforzando', 'sekstakords', 'kvartsekstakords', 'd65', 'd43',
+    'd2', 'ievadseptakords', 'ii7', 'k64', 'pilna-kadence',
+    'autentiska-kadence', 'plagala-kadence', 'partraukta-kadence', 'frigiskais-apgrozijums', 'dubultdominante',
+    'blakusdominante', 'novirziens', 'modulacija', 'neapolitan-sixth', 'ergelpunkts',
+    'periods', 'rondo', 'variaciju-forma', 'sonatas-allegro', 'polifonija',
+    'homofonija', 'imitacija-kanons', 'fuga', 'basso-ostinato', 'baroka-svita',
+    'klasiska-simfonija', 'uvertira', 'recitativs-arija', 'leitmotivs', 'a-cappella'
   ) then raise exception 'unknown flashcard'; end if;
 
   insert into public.flashcard_progress (user_id, card_id, known_count, review_count)
@@ -387,6 +402,7 @@ language plpgsql
 security definer
 set search_path = ''
 as $$
+#variable_conflict use_column
 declare
   current_user_id uuid := auth.uid();
   required_lesson text;

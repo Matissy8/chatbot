@@ -21,6 +21,7 @@ import { describeGradeForAI, GRADE_LEVEL_RULES, normalizeGradeLevel } from "@/li
 import { MUSIC_SUBJECTS, MUSIC_SUBJECT_AI_RULES, normalizeMusicSubject } from "@/lib/music-subjects";
 import { DAILY_LIMIT_CODE, FREE_DAILY_QUESTION_LIMIT } from "@/lib/plans";
 import type { TutorLanguage } from "@/lib/ai-provider";
+import type { ChatImage } from "@/lib/chat-types";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -29,13 +30,17 @@ const MAX_MESSAGES = 50;
 const MAX_MESSAGE_LENGTH = 12_000;
 const AI_TIMEOUT_MS = 40_000;
 const FIRST_TURN_CACHE_TTL_MS = 30 * 60 * 1000;
+const MAX_IMAGE_SIZE_BYTES = 8 * 1024 * 1024;
+const MAX_IMAGE_BASE64_LENGTH = 4 * Math.ceil(MAX_IMAGE_SIZE_BYTES / 3);
+const SUPPORTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"] as const;
+const MUSIC_FORMATTING_RULES = String.raw`SVARĪGI FORMĀTĒŠANAS NOTEIKUMI: Nekad neizmanto LaTeX sintaksi, dolāra zīmes ($...$), slīpsvītras (\frac, \text, \sharp, \flat) vai matemātiskos indeksus (^, _) akordu, intervālu, pakāpju un taktsmēru pierakstā! Raksti visu tīrā, lasāmā tekstā: piemēram, D7, D6/5, D4/3, D2, T6, K6/4, II7, VII7, taktsmērs 3/4 vai 6/8, # (diēzs), b (bemols), romiešu ciparus I, IV, V un Latvijas nošu sistēmas burtus H un B. Analizējot nošu vai uzdevumu attēlus, sniedz skaidru, strukturētu un lakonisku skaidrojumu parastā tekstā ar aizzīmēm.`;
 
 const BASE_HEADERS = {
   "Content-Type": "text/plain; charset=utf-8",
   "Cache-Control": "no-cache, no-transform",
 };
 
-type IncomingMessage = { role: "user" | "assistant"; content: string };
+type IncomingMessage = { role: "user" | "assistant"; content: string; image?: ChatImage };
 type ServerClient = Awaited<ReturnType<typeof createClient>>;
 type Profile = { role: string | null; grade_level: number | string | null; language: string | null } | null;
 
@@ -43,6 +48,10 @@ function getSubject(text: string, requestedSubject: unknown): string {
   const input = typeof requestedSubject === "string" && requestedSubject.trim() ? requestedSubject : text;
   const subjectId = normalizeMusicSubject(input);
   return MUSIC_SUBJECTS.find((subject) => subject.id === subjectId)?.name ?? "Mūzikas teorija";
+}
+
+function stripDollarDelimiters(text: string) {
+  return text.replace(/\$/g, "");
 }
 
 async function persistAssistantReply(supabase: ServerClient, chatId: string, userId: string, text: string, subject: string, awardChatXp: boolean) {
@@ -61,7 +70,7 @@ async function persistAssistantReply(supabase: ServerClient, chatId: string, use
 }
 
 async function handlePost(request: Request) {
-  let body: { messages?: unknown; chatId?: unknown; subject?: unknown };
+  let body: { messages?: unknown; chatId?: unknown; subject?: unknown; language?: unknown };
   try {
     body = await request.json();
   } catch {
@@ -77,25 +86,54 @@ async function handlePost(request: Request) {
     if (!item || typeof item !== "object") {
       return Response.json({ error: "Ziņas formāts nav derīgs." }, { status: 400 });
     }
-    const candidate = item as { role?: unknown; content?: unknown };
+    const candidate = item as { role?: unknown; content?: unknown; image?: unknown };
     if ((candidate.role !== "user" && candidate.role !== "assistant") || typeof candidate.content !== "string") {
       return Response.json({ error: "Ziņas formāts nav derīgs." }, { status: 400 });
     }
     if (candidate.content.length > MAX_MESSAGE_LENGTH) {
       return Response.json({ error: "Ziņa ir pārāk gara." }, { status: 400 });
     }
-    messages.push({ role: candidate.role, content: candidate.content });
+    let image: ChatImage | undefined;
+    if (candidate.image !== undefined) {
+      if (!candidate.image || typeof candidate.image !== "object") {
+        return Response.json({ error: "Attēla formāts nav derīgs." }, { status: 400 });
+      }
+      const attachment = candidate.image as { data?: unknown; mediaType?: unknown };
+      if (
+        typeof attachment.data !== "string" ||
+        attachment.data.length === 0 ||
+        attachment.data.length > MAX_IMAGE_BASE64_LENGTH ||
+        !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(attachment.data) ||
+        typeof attachment.mediaType !== "string" ||
+        !SUPPORTED_IMAGE_TYPES.includes(attachment.mediaType as typeof SUPPORTED_IMAGE_TYPES[number])
+      ) {
+        return Response.json({ error: "Attēlam jābūt derīgam JPG, PNG, WebP vai GIF failam, kas nepārsniedz 8 MB." }, { status: 400 });
+      }
+      const imageBytes = Buffer.from(attachment.data, "base64");
+      if (imageBytes.length === 0 || imageBytes.length > MAX_IMAGE_SIZE_BYTES) {
+        return Response.json({ error: "Attēlam jābūt mazākam par 8 MB." }, { status: 413 });
+      }
+      image = { data: attachment.data, mediaType: attachment.mediaType as ChatImage["mediaType"] };
+    }
+    messages.push({ role: candidate.role, content: candidate.content, ...(image ? { image } : {}) });
   }
 
   const lastMessage = messages[messages.length - 1];
   if (lastMessage.role !== "user" || !lastMessage.content.trim()) {
     return Response.json({ error: "Pēdējai ziņai jābūt lietotāja jautājumam." }, { status: 400 });
   }
+  if (messages.slice(0, -1).some((message) => message.image)) {
+    return Response.json({ error: "Attēlu drīkst pievienot tikai pēdējai lietotāja ziņai." }, { status: 400 });
+  }
 
   const cookieStore = await cookies();
   const isGuest = isGuestModeEnabled() && cookieStore.get(GUEST_COOKIE_NAME)?.value === "1";
   if (isGuest) {
-    const text = await generateTutorReply({ messages, language: "lv", allowProviders: false });
+    if (lastMessage.image) {
+      return Response.json({ error: "Attēlu analīzei nepieciešams autentificēts konts." }, { status: 403 });
+    }
+    const language: TutorLanguage = body.language === "en" || body.language === "ru" ? body.language : "lv";
+    const text = await generateTutorReply({ messages, language, allowProviders: false });
     return new Response(text, { headers: { ...BASE_HEADERS, "Cache-Control": "no-store", "X-Guest-Mode": "true" } });
   }
 
@@ -210,11 +248,12 @@ async function handlePost(request: Request) {
       sourceInstructions,
       MUSIC_SUBJECT_AI_RULES,
       "Palīdzi tikai ar Latvijas mūzikas skolu priekšmetiem. Izvēlētais priekšmets ir orientējošs; ja jautājums ir par vispārizglītojošu priekšmetu ārpus mūzikas konteksta, pieklājīgi paskaidro platformas tvērumu un piedāvā ar mūziku saistītu tēmu. Ņem vērā visu iepriekšējo sarunu, atbildi tieši uz pēdējo jautājumu un neatkārto iepriekšējās atbildes. Ja neesi pārliecināts, pasaki to godīgi un sniedz to, ko zini droši.",
-      "Esi kodolīgs; izmanto Markdown un KaTeX formulas, ja tas palīdz, un paskaidro risinājuma gaitu.",
+      "Esi kodolīgs; izmanto vienkāršu Markdown un paskaidro risinājuma gaitu. Mūzikas pierakstu raksti parastā tekstā, nevis matemātikas formatā.",
+      MUSIC_FORMATTING_RULES,
       LATVIAN_STYLE_RULES,
     ].join(" ");
 
-    const cacheKey = messages.length === 1
+    const cacheKey = messages.length === 1 && !lastMessage.image
       ? createHash("sha256")
           .update(`${language}|${profile?.role}|${profile?.grade_level}|${subject}|${lastMessage.content.trim().toLowerCase()}`)
           .digest("hex")
@@ -226,18 +265,38 @@ async function handlePost(request: Request) {
     let usedFallback = false;
 
     if (!responseText && hasConfiguredAIProvider()) {
+      const modelMessages = limitContext(messages).map((message): ModelMessage => {
+        if (message.role === "user" && message.image) {
+          return {
+            role: "user",
+            content: [
+              { type: "text", text: message.content },
+              {
+                type: "image",
+                image: Buffer.from(message.image.data, "base64"),
+                mediaType: message.image.mediaType,
+              },
+            ],
+          };
+        }
+        return { role: message.role, content: message.content };
+      });
       const result = await generateText({
         model: getConfiguredModel(),
         system,
-        messages: limitContext(messages) as ModelMessage[],
+        messages: modelMessages,
         ...aiRequestOptions(AI_TIMEOUT_MS, 1200, signal),
       });
       responseText = result.text;
     } else if (!responseText) {
+      if (lastMessage.image) {
+        return Response.json({ error: "Attēlu analīzei serverī jābūt konfigurētam Gemini pakalpojumam." }, { status: 503 });
+      }
       usedFallback = true;
       responseText = await generateTutorReply({ messages, language, allowProviders: false });
     }
 
+    responseText = stripDollarDelimiters(responseText);
     if (!responseText.trim()) throw new Error("Gemini returned an empty response.");
     if (cacheKey && !cached && !usedFallback) cacheSet(cacheKey, responseText, FIRST_TURN_CACHE_TTL_MS);
 

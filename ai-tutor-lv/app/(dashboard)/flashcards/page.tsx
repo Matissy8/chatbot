@@ -7,14 +7,47 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useAppSession } from "@/components/providers/app-provider";
 import { fetchJson } from "@/lib/fetch-json";
 import { flashcards, type FlashcardId } from "@/lib/music-learning-data";
-import { translate } from "@/lib/i18n";
+import TermDuel from "@/components/learning/TermDuel";
+import { translate, type Language } from "@/lib/i18n";
 
 const FLIP_DURATION_MS = 500;
 
 type CardProgress = { known_count: number; review_count: number };
 type ProgressResult = { progress: { card_id: string; known_count: number; review_count: number }[] };
 
+const TAB_LABELS: Record<"cards" | "duel", Record<Language, string>> = {
+  cards: { lv: "Kartītes", en: "Flashcards", ru: "Карточки" },
+  duel: { lv: "Terminu duelis", en: "Term duel", ru: "Дуэль терминов" },
+};
+
 export default function FlashcardsPage() {
+  const { language } = useAppSession();
+  const [tab, setTab] = useState<"cards" | "duel">("cards");
+
+  return (
+    <div className="space-y-4">
+      <div role="tablist" className="mx-auto flex w-full max-w-3xl gap-2 rounded-2xl border border-border bg-card p-1.5">
+        {(["cards", "duel"] as const).map((key) => (
+          <button
+            key={key}
+            type="button"
+            role="tab"
+            aria-selected={tab === key}
+            onClick={() => setTab(key)}
+            className={`min-h-[44px] flex-1 rounded-xl px-4 py-2 text-sm font-semibold transition ${
+              tab === key ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            }`}
+          >
+            {TAB_LABELS[key][language]}
+          </button>
+        ))}
+      </div>
+      {tab === "cards" ? <FlashcardsDeck /> : <TermDuel language={language} />}
+    </div>
+  );
+}
+
+function FlashcardsDeck() {
   const { refreshSession, session, language } = useAppSession();
   const tr = (text: string) => translate(language, text);
   const [index, setIndex] = useState(0);
@@ -25,8 +58,9 @@ export default function FlashcardsPage() {
   const [error, setError] = useState("");
   const isComplete = index >= flashcards.length;
   const card = flashcards[Math.min(index, flashcards.length - 1)];
-  const currentProgress = progress[card.id] ?? { known_count: 0, review_count: 0 };
-  const completedReviews = Object.values(progress).reduce((total, item) => total + (item?.known_count ?? 0) + (item?.review_count ?? 0), 0);
+  const totalKnown = Object.values(progress).reduce((total, item) => total + (item?.known_count ?? 0), 0);
+  const totalReview = Object.values(progress).reduce((total, item) => total + (item?.review_count ?? 0), 0);
+  const completedReviews = totalKnown + totalReview;
 
   useEffect(() => {
     if (session?.isGuest) return;
@@ -131,7 +165,7 @@ export default function FlashcardsPage() {
             aria-label={tr(flipped ? "Rādīt jautājumu" : "Apgriezt kartīti un rādīt atbildi")}
             className="group w-full rounded-2xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            <div className="relative h-64 [perspective:1000px]">
+            <div className="relative h-72 [perspective:1000px]">
               <div
                 className={`absolute inset-0 transition-transform duration-500 [transform-style:preserve-3d] ${flipped ? "[transform:rotateY(180deg)]" : ""}`}
               >
@@ -143,18 +177,18 @@ export default function FlashcardsPage() {
                 <div className="absolute inset-0 flex flex-col items-center justify-center rounded-2xl bg-gradient-to-br from-slate-800 to-indigo-950 p-6 text-center text-white shadow-md [transform:rotateY(180deg)] [backface-visibility:hidden]">
                   <span className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-200">{tr("Atbilde")}</span>
                   <h3 className="mt-4 text-2xl font-bold">{tr(card.definition)}</h3>
-                  <p className="mt-3 max-w-lg text-sm text-indigo-100">{tr(card.example)}</p>
+                  {card.example && <p className="mt-3 max-w-lg text-sm text-indigo-100">{tr(card.example)}</p>}
                 </div>
               </div>
             </div>
           </button>
 
           {flipped && (
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Button variant="outline" onClick={() => void rateCard(false)} disabled={saving} className="h-11 gap-2">
+            <div className="grid grid-cols-2 gap-3">
+              <Button variant="outline" onClick={() => void rateCard(false)} disabled={saving} className="h-14 gap-2 border-rose-500/50 bg-rose-500/10 text-base text-rose-700 hover:bg-rose-500/20 dark:text-rose-300 md:h-11 md:text-sm">
                 <RotateCcw className="h-4 w-4" /> {tr("Mācos vēl")}
               </Button>
-              <Button onClick={() => void rateCard(true)} disabled={saving} className="h-11 gap-2">
+              <Button onClick={() => void rateCard(true)} disabled={saving} className="h-14 gap-2 bg-emerald-600 text-base text-white hover:bg-emerald-700 md:h-11 md:text-sm">
                 {tr("Zināju")} <ArrowRight className="h-4 w-4" />
               </Button>
             </div>
@@ -163,7 +197,7 @@ export default function FlashcardsPage() {
           {error && <p className="text-sm text-destructive" role="alert">{error}</p>}
           {loading && <p className="text-sm text-muted-foreground" role="status">{tr("Ielādē progresu…")}</p>}
           <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-4 text-xs text-muted-foreground">
-            <span>{tr("Zināju")}: {currentProgress.known_count} · {tr("Mācos vēl")}: {currentProgress.review_count}</span>
+            <span>{tr("Zināju")}: {totalKnown} · {tr("Mācos vēl")}: {totalReview}</span>
             <span>{tr("Atkārtojumu kopā")}: {completedReviews}</span>
           </div>
           <div className="flex justify-between">

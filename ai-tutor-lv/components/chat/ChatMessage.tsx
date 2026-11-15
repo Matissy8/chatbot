@@ -1,4 +1,5 @@
 import { memo, useEffect, useState } from "react";
+import Image from "next/image";
 import { Bot, Volume2, User } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import rehypeKatex from "rehype-katex";
@@ -38,6 +39,16 @@ export const ChatMessage = memo(function ChatMessage({ message }: ChatMessagePro
               : "rounded-2xl rounded-bl-sm border border-border bg-card text-card-foreground"
           )}
         >
+          {isUser && message.image && (
+            <Image
+              src={`data:${message.image.mediaType};base64,${message.image.data}`}
+              alt={translate(language, "Pievienotais attēls")}
+              width={320}
+              height={240}
+              unoptimized
+              className="mb-2 max-h-56 w-auto max-w-full rounded-lg object-contain"
+            />
+          )}
           {isUser ? (
             <div className="whitespace-pre-wrap leading-relaxed">{messageText}</div>
           ) : (
