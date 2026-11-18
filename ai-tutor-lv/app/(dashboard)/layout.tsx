@@ -1,10 +1,9 @@
-"use client";
+﻿"use client";
 
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
-import { FloatingAssistant } from "@/components/chat/FloatingAssistant";
 import { MaestroJunior } from "@/components/chat/MaestroJunior";
 import { Button } from "@/components/ui/button";
 import { useAppSession } from "@/components/providers/app-provider";
@@ -85,8 +84,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </header>
         <main className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-5 print:overflow-visible print:p-0">{children}</main>
         {!session.isGuest && <MaestroJunior />}
-        {/* The chat page is already a full conversation, so the quick helper is shown on the other pages only. */}
-        {!pathname.startsWith("/chat") && <FloatingAssistant />}
       </div>
     </div>
   );

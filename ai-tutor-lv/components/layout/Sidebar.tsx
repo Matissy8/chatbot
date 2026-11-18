@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -21,6 +21,8 @@ import {
   Music2,
   Pin,
   Plus,
+  Bug,
+  MessageCircle,
   Settings,
   Sun,
   Target,
@@ -447,6 +449,27 @@ export function Sidebar() {
         </div>
 
         <div className={cn("space-y-3 border-t border-border bg-background/50 p-3", collapsed && "hidden")}>
+          <div className="space-y-1">
+            <p className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              {tr("Maestro Junior")}
+            </p>
+            <button
+              type="button"
+              onClick={() => window.dispatchEvent(new CustomEvent("maestro-junior-open", { detail: "ask" }))}
+              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <MessageCircle className="h-4 w-4" aria-hidden="true" />
+              {tr("Jautāt Maestro Junior")}
+            </button>
+            <button
+              type="button"
+              onClick={() => window.dispatchEvent(new CustomEvent("maestro-junior-open", { detail: "report" }))}
+              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <Bug className="h-4 w-4" aria-hidden="true" />
+              {tr("Ziņot par kļūdu")}
+            </button>
+          </div>
           <div className="rounded-lg border border-border bg-card p-3">
             <div className="mb-2 flex items-center justify-between text-xs">
               <span className="font-semibold">{tr("Līmenis")} {level.level}</span>

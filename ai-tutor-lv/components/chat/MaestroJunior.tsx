@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Bug, Camera, LoaderCircle, MessageCircle, Send, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -47,7 +47,7 @@ async function captureScreen(): Promise<string> {
 
 export function MaestroJunior() {
   const { language } = useAppSession();
-  const tr = (text: string) => translate(language, text);
+  const tr = useCallback((text: string) => translate(language, text), [language]);
   const [isOpen, setIsOpen] = useState(false);
   const [step, setStep] = useState<Step>("choose");
   const [mode, setMode] = useState<Mode>("ask");
@@ -71,7 +71,7 @@ export function MaestroJunior() {
     setError("");
   }
 
-  async function begin(nextMode: Mode) {
+  const begin = useCallback(async (nextMode: Mode) => {
     setMode(nextMode);
     setStep("capture");
     setScreenshot("");
@@ -88,7 +88,20 @@ export function MaestroJunior() {
     } finally {
       setStep("form");
     }
-  }
+  }, [tr]);
+
+  useEffect(() => {
+    function openFromQuickAccess(event: Event) {
+      const nextMode = (event as CustomEvent<Mode>).detail;
+      if (nextMode === "ask" || nextMode === "report") {
+        setIsOpen(true);
+        setStep("choose");
+        void begin(nextMode);
+      }
+    }
+    window.addEventListener("maestro-junior-open", openFromQuickAccess);
+    return () => window.removeEventListener("maestro-junior-open", openFromQuickAccess);
+  }, [begin]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
